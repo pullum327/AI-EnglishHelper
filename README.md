@@ -1,6 +1,13 @@
 # 🎓 英語學習應用程式 (English Learning App)
 
 一個基於 AI 的互動式英語學習應用程式，專為中文使用者設計，提供對話生成、單字學習、句子練習和互動式測驗等功能。
+<img width="490" height="1044" alt="image" src="https://github.com/user-attachments/assets/100ad888-fe33-473d-9645-4ae7c55aeac7" />
+<img width="461" height="939" alt="image" src="https://github.com/user-attachments/assets/8929e063-88df-4422-b26f-53ec8780d1f0" />
+<img width="464" height="366" alt="image" src="https://github.com/user-attachments/assets/87e940f5-bc2e-4bc5-ac01-1ea6dffdbeb2" />
+<img width="477" height="1037" alt="image" src="https://github.com/user-attachments/assets/b44fd94a-affd-4ef6-8d75-9e684b6d5ebe" />
+<img width="495" height="1043" alt="image" src="https://github.com/user-attachments/assets/609d90c4-c7e8-4165-864e-8b422d0f583a" />
+<img width="480" height="1039" alt="image" src="https://github.com/user-attachments/assets/2f564221-ecff-4ce5-b721-c006d4e893e9" />
+
 
 ## ✨ 主要功能
 
