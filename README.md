@@ -1,6 +1,13 @@
 # 🎓 英語學習應用程式 (English Learning App)
 
 一個基於 AI 的互動式英語學習應用程式，專為中文使用者設計，提供對話生成、單字學習、句子練習和互動式測驗等功能。
+<img width="490" height="1044" alt="image" src="https://github.com/user-attachments/assets/100ad888-fe33-473d-9645-4ae7c55aeac7" />
+<img width="461" height="939" alt="image" src="https://github.com/user-attachments/assets/8929e063-88df-4422-b26f-53ec8780d1f0" />
+<img width="464" height="366" alt="image" src="https://github.com/user-attachments/assets/87e940f5-bc2e-4bc5-ac01-1ea6dffdbeb2" />
+<img width="477" height="1037" alt="image" src="https://github.com/user-attachments/assets/b44fd94a-affd-4ef6-8d75-9e684b6d5ebe" />
+<img width="495" height="1043" alt="image" src="https://github.com/user-attachments/assets/609d90c4-c7e8-4165-864e-8b422d0f583a" />
+<img width="480" height="1039" alt="image" src="https://github.com/user-attachments/assets/2f564221-ecff-4ce5-b721-c006d4e893e9" />
+
 
 ## ✨ 主要功能
 
@@ -31,6 +38,13 @@
 - **進度追蹤**：顯示答題進度和得分統計
 - **觸控優化**：完全支援手機觸控操作
 
+### ✉️ AI 英文回信助手
+- **智能回信生成**：提供英文信件，AI自動生成專業回覆
+- **中英文對照**：同時顯示英文回覆和中文翻譯
+- **多種信件類型**：支援商務信件、個人信件、邀請函等
+- **離線模式支援**：API不可用時自動使用智能備用方案
+- **便捷操作**：一鍵複製、下載、重置功能
+
 ### 🎨 主題系統
 - **深色/淺色主題**：支援深色和淺色兩種主題模式
 - **主題切換**：可隨時切換主題，設定會自動保存
@@ -59,6 +73,11 @@
 - **Web Speech API**：瀏覽器原生語音合成
 - **語速控制**：支援 0.5x 到 1.5x 語速調整
 - **多語言支援**：支援英文發音
+
+### 滑動導航
+- **觸控手勢支援**：支援左右滑動切換頁面
+- **視覺反饋**：滑動方向和提示指示器
+- **響應式設計**：完美適配手機觸控操作
 
 ## 🚀 快速開始
 
@@ -108,6 +127,12 @@ VITE_MISTRAL_API_KEY=your_api_key_here
 3. 提交後查看即時評分
 4. 完成所有題目後查看詳細結果
 
+### AI 英文回信
+1. 在回信助手頁面輸入英文信件
+2. 點擊「生成AI回信」按鈕
+3. 查看生成的英文回覆和中文翻譯
+4. 使用複製或下載功能保存結果
+
 ### 主題切換
 1. 點擊右上角的主題切換按鈕
 2. 在深色和淺色主題間切換
@@ -142,11 +167,16 @@ src/
 │   ├── App.tsx         # 主應用組件
 │   ├── ThemeToggle.tsx # 主題切換組件
 │   ├── PracticeExercises.tsx # 練習題組件
+│   ├── ReplyLetterGenerator.tsx # AI回信助手組件
+│   ├── TTSController.tsx # TTS控制器組件
+│   ├── SwipeNavigationIndicator.tsx # 滑動導航指示器
 │   └── ...
 ├── contexts/           # React Context
 │   └── ThemeContext.tsx # 主題管理
 ├── services/           # API 服務
 │   └── mistralService.ts # Mistral AI 服務
+├── hooks/              # 自定義Hooks
+│   └── useSwipeNavigation.ts # 滑動導航Hook
 ├── types/              # TypeScript 類型定義
 └── main.tsx           # 應用入口點
 ```
@@ -171,13 +201,16 @@ src/
 - [x] 單字學習和收藏
 - [x] 句子學習和收藏
 - [x] 互動式練習系統
+- [x] AI 英文回信助手
 - [x] 主題切換系統
 - [x] 響應式設計
 - [x] 觸控優化
-- [x] 語音合成功能
+- [x] 語音合成功能 (TTS)
+- [x] 滑動導航功能
 - [x] 進度追蹤
 - [x] 結果統計
 - [x] 本地儲存
+- [x] 離線模式支援
 
 ### 🔄 可擴展功能
 - [ ] 用戶帳戶系統
@@ -185,7 +218,9 @@ src/
 - [ ] 更多練習題型
 - [ ] 社交學習功能
 - [ ] 學習報告生成
-- [ ] 離線模式支援
+- [ ] 更多信件類型模板
+- [ ] 語法檢查和建議
+- [ ] 寫作評分系統
 
 ## 🐛 已知問題
 
@@ -194,6 +229,8 @@ src/
 - ✅ 白色主題下顏色對比度不足 → 已優化顏色配置
 - ✅ 難易度選擇器自動觸發生成 → 已改為手動觸發
 - ✅ 練習題結果顯示異常 → 已修復答案檢查邏輯
+- ✅ Mistral API 429錯誤 → 已添加錯誤處理和備用方案
+- ✅ 跨瀏覽器TTS兼容性 → 已實現設備自適應優化
 
 ### 技術限制
 - 語音合成功能依賴瀏覽器支援
@@ -222,10 +259,35 @@ src/
 
 ## 🙏 致謝
 
-- **Mistral AI**：提供強大的 AI 對話生成能力
+- **Mistral AI**：提供強大的 AI 對話生成和回信能力
 - **React 團隊**：優秀的前端框架
 - **Tailwind CSS**：實用的 CSS 框架
 - **Lucide**：精美的圖標庫
+- **Web Speech API**：瀏覽器原生語音合成支援
+
+## 📋 版本更新日誌
+
+### v2.2.1 (2024年12月)
+- 🛡️ 新增API錯誤處理和備用方案
+- 🔄 新增離線模式支援
+- 📊 新增API狀態指示器
+- 🧠 新增智能備用回覆生成
+
+### v2.2.0 (2024年12月)
+- ✨ 新增AI英文回信助手功能
+- 📧 支持各種類型英文信件
+- 🌏 新增中英文對照功能
+- 📱 新增複製和下載功能
+
+### v2.1.0 (2024年12月)
+- 📱 新增滑動導航功能
+- 🎮 新增觸控手勢支持
+- 🔧 新增滑動參數配置
+
+### v2.0.0 (2024年12月)
+- 🎯 基礎TTS語音功能
+- 📚 跨瀏覽器兼容性
+- 🎮 設備自適應優化
 
 ## 📞 聯絡資訊
 
@@ -237,4 +299,4 @@ src/
 
 **🎯 讓學習英語變得更有趣、更有效！**
 
-*最後更新：2024年8月*
+*最後更新：2024年12月*
