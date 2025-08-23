@@ -5,9 +5,61 @@
 @tailwind utilities;
 
 @layer base {
+  html {
+    /* 確保手機上可以正常滾動 */
+    -webkit-overflow-scrolling: touch;
+    overflow-scrolling: touch;
+    /* 防止iOS Safari的彈跳效果 */
+    overscroll-behavior: none;
+  }
+  
   body {
     @apply bg-white text-white font-sans;
     font-feature-settings: "rlig" 1, "calt" 1;
+    /* 確保手機上可以正常滾動和點擊 */
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    -khtml-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+    /* 防止手機上的縮放 */
+    touch-action: manipulation;
+    /* 確保滾動流暢 */
+    scroll-behavior: smooth;
+  }
+  
+  /* 確保所有可點擊元素在手機上正常工作 */
+  button, a, [role="button"] {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    cursor: pointer;
+  }
+  
+  /* 確保文本區域可以選擇和滾動 */
+  textarea, input[type="text"], input[type="email"], input[type="password"] {
+    -webkit-user-select: text;
+    -moz-user-select: text;
+    -ms-user-select: text;
+    user-select: text;
+    touch-action: manipulation;
+  }
+  
+  /* 確保滾動容器正常工作 */
+  .overflow-y-auto, .overflow-auto {
+    -webkit-overflow-scrolling: touch;
+    overflow-scrolling: touch;
+  }
+  
+  /* 防止手機上的雙擊縮放 */
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+  
+  /* 確保按鈕在手機上有足夠的觸控區域 */
+  button {
+    min-height: 44px;
+    min-width: 44px;
   }
 }
 

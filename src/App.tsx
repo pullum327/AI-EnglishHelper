@@ -107,6 +107,11 @@ function App() {
       if (currentIndex > 0) {
         setCurrentPage(pageOrder[currentIndex - 1])
       }
+    },
+    config: {
+      minSwipeDistance: 80, // 增加滑動距離要求，避免誤觸
+      maxSwipeTime: 500,    // 增加滑動時間限制
+      preventDefault: false // 不阻止默認觸控行為
     }
   })
   
@@ -780,7 +785,7 @@ function App() {
       )}
 
       {/* 主要內容區域 */}
-      <main className="pb-20">
+      <main className="pb-20 min-h-screen overflow-y-auto">
         {renderCurrentPage()}
       </main>
 

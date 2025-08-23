@@ -17,7 +17,7 @@ interface UseSwipeNavigationProps {
 const defaultConfig: SwipeConfig = {
   minSwipeDistance: 50,
   maxSwipeTime: 300,
-  preventDefault: true
+  preventDefault: false
 }
 
 export const useSwipeNavigation = ({
@@ -36,8 +36,13 @@ export const useSwipeNavigation = ({
   const finalConfig = { ...defaultConfig, ...config }
 
   const onTouchStart = useCallback((e: TouchEvent) => {
-    if (finalConfig.preventDefault) {
-      e.preventDefault()
+    // 只在必要時阻止默認行為，避免影響正常滾動
+    if (finalConfig.preventDefault && e.target instanceof HTMLElement) {
+      const target = e.target as HTMLElement
+      // 檢查是否在可滾動元素內
+      if (!target.closest('textarea') && !target.closest('input')) {
+        e.preventDefault()
+      }
     }
     
     touchStart.current = {
