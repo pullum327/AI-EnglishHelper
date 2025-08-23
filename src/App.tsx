@@ -7,9 +7,15 @@ import PracticeExercises from './components/PracticeExercises'
 import WordCollection from './components/WordCollection'
 import SentenceCollection from './components/SentenceCollection'
 import ThemeToggle from './components/ThemeToggle'
+import TTSController from './components/TTSController'
+import SwipeNavigationIndicator from './components/SwipeNavigationIndicator'
+import SwipeHint from './components/SwipeHint'
+import ReplyLetterGenerator from './components/ReplyLetterGenerator'
 import { MistralService } from './services/mistralService'
 import { type DifficultyLevel } from './services/mistralService'
 import { useTheme } from './contexts/ThemeContext'
+import { ttsService } from './services/ttsService'
+import { useSwipeNavigation } from './hooks/useSwipeNavigation'
 
 // 接口定義
 interface Word {
@@ -84,6 +90,26 @@ function App() {
   const [currentPage, setCurrentPage] = useState<PageType>('home')
   const [showSidebar, setShowSidebar] = useState(false)
   
+  // 滑動導航
+  const { isSwiping, swipeDirection, attachSwipeListeners } = useSwipeNavigation({
+    onSwipeLeft: () => {
+      // 向左滑動：下一頁
+      const pageOrder: PageType[] = ['home', 'dialogue', 'words', 'sentences', 'practice', 'settings']
+      const currentIndex = pageOrder.indexOf(currentPage)
+      if (currentIndex < pageOrder.length - 1) {
+        setCurrentPage(pageOrder[currentIndex + 1])
+      }
+    },
+    onSwipeRight: () => {
+      // 向右滑動：上一頁
+      const pageOrder: PageType[] = ['home', 'dialogue', 'words', 'sentences', 'practice', 'settings']
+      const currentIndex = pageOrder.indexOf(currentPage)
+      if (currentIndex > 0) {
+        setCurrentPage(pageOrder[currentIndex - 1])
+      }
+    }
+  })
+  
   // 對話相關狀態
   const [dialogue, setDialogue] = useState<Array<{
     speaker: string
@@ -100,7 +126,7 @@ function App() {
   const [customInput, setCustomInput] = useState('')
   const [isTranslating, setIsTranslating] = useState(false)
   const [translationResult, setTranslationResult] = useState('')
-  const [inputMode, setInputMode] = useState<'dialogue' | 'translation'>('dialogue')
+  const [inputMode, setInputMode] = useState<'dialogue' | 'translation' | 'reply-letter'>('dialogue')
 
   // 單字和句子收藏狀態
   const [words, setWords] = useState<Word[]>([])
@@ -122,6 +148,15 @@ function App() {
     }
     return () => clearInterval(interval)
   }, [cooldownSeconds])
+
+  // 設置滑動手勢監聽器
+  useEffect(() => {
+    const mainElement = document.querySelector('main')
+    if (mainElement) {
+      const cleanup = attachSwipeListeners(mainElement)
+      return cleanup
+    }
+  }, [attachSwipeListeners])
 
   // 初始化 Mistral 服務
   const mistralService = new MistralService(import.meta.env.VITE_MISTRAL_TOKEN || '6BjrhFY5nFujgMhUOKX2QujWCaDBXiTV')
@@ -264,22 +299,20 @@ function App() {
   }
 
   // 播放單字發音
-  const speakWord = (word: string) => {
-    if ('speechSynthesis' in window) {
-      const utterance = new SpeechSynthesisUtterance(word)
-      utterance.lang = 'en-US'
-      utterance.rate = 0.8
-      speechSynthesis.speak(utterance)
+  const speakWord = async (word: string) => {
+    try {
+      await ttsService.speakWord(word)
+    } catch (error) {
+      console.error('播放單字失敗:', error)
     }
   }
 
   // 播放句子發音
-  const speakSentence = (sentence: string) => {
-    if ('speechSynthesis' in window) {
-      const utterance = new SpeechSynthesisUtterance(sentence)
-      utterance.lang = 'en-US'
-      utterance.rate = 0.8
-      speechSynthesis.speak(utterance)
+  const speakSentence = async (sentence: string) => {
+    try {
+      await ttsService.speakSentence(sentence)
+    } catch (error) {
+      console.error('播放句子失敗:', error)
     }
   }
 
@@ -410,27 +443,43 @@ function App() {
               >
                 翻譯文本
               </button>
+              <button
+                onClick={() => setInputMode('reply-letter')}
+                className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                  inputMode === 'reply-letter'
+                    ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-lg shadow-emerald-500/20'
+                    : `bg-gradient-to-r ${themeConfig.colors.button.secondary} ${themeConfig.colors.text.secondary} hover:from-slate-600/50 hover:to-slate-500/50 border ${themeConfig.colors.border.primary} hover:border-emerald-400/40`
+                }`}
+              >
+                回覆信件
+              </button>
             </div>
             
-            <textarea
-              value={customInput}
-              onChange={(e) => setCustomInput(e.target.value)}
-              placeholder={inputMode === 'dialogue' ? '輸入您想要練習的主題或情境...' : '輸入要翻譯的文本...'}
-              className="w-full bg-gradient-to-r from-slate-900/60 to-slate-800/60 border border-slate-600/50 rounded-xl px-4 py-3 text-white placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-400/70 transition-all duration-200 resize-none backdrop-blur-sm shadow-lg"
-              rows={3}
-            />
-            
-            <button
-              onClick={inputMode === 'dialogue' ? handleCustomDialogue : handleTranslate}
-              disabled={!customInput.trim() || (inputMode === 'dialogue' ? isGeneratingDialogue : isTranslating)}
-              className="w-full bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 disabled:from-gray-600 disabled:to-gray-700 text-white py-3 rounded-xl font-medium transition-all duration-200 flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/30 transform hover:scale-105"
-            >
-              {inputMode === 'dialogue' ? (
-                isGeneratingDialogue ? '生成中...' : '生成對話'
-              ) : (
-                isTranslating ? '翻譯中...' : '開始翻譯'
-              )}
-            </button>
+            {inputMode === 'reply-letter' ? (
+              <ReplyLetterGenerator />
+            ) : (
+              <>
+                <textarea
+                  value={customInput}
+                  onChange={(e) => setCustomInput(e.target.value)}
+                  placeholder={inputMode === 'dialogue' ? '輸入您想要練習的主題或情境...' : '輸入要翻譯的文本...'}
+                  className="w-full bg-gradient-to-r from-slate-900/60 to-slate-800/60 border border-slate-600/50 rounded-xl px-4 py-3 text-white placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-400/70 transition-all duration-200 resize-none backdrop-blur-sm shadow-lg"
+                  rows={3}
+                />
+                
+                <button
+                  onClick={inputMode === 'dialogue' ? handleCustomDialogue : handleTranslate}
+                  disabled={!customInput.trim() || (inputMode === 'dialogue' ? isGeneratingDialogue : isTranslating)}
+                  className="w-full bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 disabled:from-gray-600 disabled:to-gray-700 text-white py-3 rounded-xl font-medium transition-all duration-200 flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/30 transform hover:scale-105"
+                >
+                  {inputMode === 'dialogue' ? (
+                    isGeneratingDialogue ? '生成中...' : '生成對話'
+                  ) : (
+                    isTranslating ? '翻譯中...' : '開始翻譯'
+                  )}
+                </button>
+              </>
+            )}
             
                           {translationResult && (
                 <div className="bg-gradient-to-r from-emerald-600/20 to-teal-600/20 border border-emerald-500/40 rounded-xl p-4 backdrop-blur-sm shadow-lg">
@@ -564,6 +613,12 @@ function App() {
             availableModels={mistralService.getAvailableModels()}
             onModelChange={setSelectedModel}
           />
+        </div>
+
+        {/* 語音設定 */}
+        <div className={`bg-gradient-to-br ${themeConfig.colors.background.card} border border-slate-500/30 rounded-3xl p-6 backdrop-blur-xl shadow-2xl shadow-slate-500/10`}>
+          <h3 className="text-xl font-bold bg-gradient-to-r from-slate-300 to-gray-300 bg-clip-text text-transparent mb-4">語音設定</h3>
+          <TTSController />
         </div>
 
         {/* 其他設定 */}
@@ -728,6 +783,15 @@ function App() {
       <main className="pb-20">
         {renderCurrentPage()}
       </main>
+
+      {/* 滑動導航指示器 */}
+      <SwipeNavigationIndicator 
+        swipeDirection={swipeDirection}
+        isSwiping={isSwiping}
+      />
+
+      {/* 滑動提示 */}
+      <SwipeHint />
 
       {/* 底部導航欄 */}
       <nav className={`fixed bottom-0 left-0 right-0 bg-gradient-to-r ${themeConfig.colors.background.tertiary} backdrop-blur-xl border-t ${themeConfig.colors.border.primary} z-40 shadow-lg`}>

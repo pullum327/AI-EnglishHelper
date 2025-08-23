@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { RotateCcw, Play, Pause, Volume2, CheckCircle, XCircle, Trophy, Star } from 'lucide-react'
 import { useTheme } from '../contexts/ThemeContext'
+import { ttsService } from '../services/ttsService'
 
 interface PracticeExercise {
   id: string
@@ -227,22 +228,24 @@ const PracticeExercises = ({ dialogue, onExerciseComplete }: PracticeExercisesPr
   }
 
   // 播放語音
-  const playAudio = (text: string) => {
-    if ('speechSynthesis' in window) {
-      speechSynthesis.cancel() // 停止之前的語音
-      const utterance = new SpeechSynthesisUtterance(text)
-      utterance.lang = 'en-US'
-      utterance.rate = audioSpeed
-      utterance.onstart = () => setIsPlaying(true)
-      utterance.onend = () => setIsPlaying(false)
-      utterance.onerror = () => setIsPlaying(false)
-      speechSynthesis.speak(utterance)
+  const playAudio = async (text: string) => {
+    try {
+      setIsPlaying(true)
+      await ttsService.speak({
+        text,
+        lang: 'en-US',
+        rate: audioSpeed
+      })
+      setIsPlaying(false)
+    } catch (error) {
+      console.error('播放語音失敗:', error)
+      setIsPlaying(false)
     }
   }
 
   // 停止語音
   const stopAudio = () => {
-    speechSynthesis.cancel()
+    ttsService.stop()
     setIsPlaying(false)
   }
 

@@ -733,4 +733,34 @@ Make sure to:
       throw error
     }
   }
+
+  // 生成自定義內容
+  async generateCustomContent(prompt: string): Promise<string> {
+    try {
+      const response = await this.client.chat.complete({
+        model: this.modelName,
+        messages: [
+          { role: 'user', content: prompt }
+        ],
+        maxTokens: 1000,
+        temperature: 0.7
+      })
+
+      const messageContent = response.choices[0]?.message?.content
+      const content = typeof messageContent === 'string'
+        ? messageContent
+        : (Array.isArray(messageContent) && messageContent[0]?.type === 'text')
+          ? messageContent[0].text
+          : ''
+
+      if (!content) {
+        throw new Error('API 響應中沒有內容')
+      }
+
+      return content.trim()
+    } catch (error) {
+      console.error('生成自定義內容失敗:', error)
+      throw error
+    }
+  }
 }
