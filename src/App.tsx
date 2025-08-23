@@ -169,15 +169,16 @@ function App() {
     
     setIsGeneratingDialogue(true)
     try {
-      // 這裡需要調用自定義對話生成 API
-      // 暫時使用預設生成
-      const newDialogue = await mistralService.generateDialogue(selectedDifficulty)
+      // 調用自定義對話生成 API
+      const newDialogue = await mistralService.generateCustomDialogue(customInput, selectedDifficulty)
       setDialogue(newDialogue)
       setCooldownSeconds(30)
       setCustomInput('')
       setCurrentPage('dialogue')
+      showNotification('✅ 自定義對話生成成功！', 'success')
     } catch (error) {
       console.error('生成自定義對話失敗:', error)
+      showNotification('❌ 自定義對話生成失敗，請稍後再試', 'error')
     } finally {
       setIsGeneratingDialogue(false)
     }
@@ -189,14 +190,15 @@ function App() {
     
     setIsTranslating(true)
     try {
-      // 這裡需要調用翻譯 API
-      // 暫時模擬翻譯結果
-      setTimeout(() => {
-        setTranslationResult(`翻譯結果: ${customInput}`)
-        setIsTranslating(false)
-      }, 1000)
+      // 調用翻譯 API
+      const translation = await mistralService.translateText(customInput)
+      setTranslationResult(translation)
+      showNotification('✅ 翻譯完成！', 'success')
     } catch (error) {
       console.error('翻譯失敗:', error)
+      setTranslationResult('翻譯失敗，請稍後再試')
+      showNotification('❌ 翻譯失敗，請稍後再試', 'error')
+    } finally {
       setIsTranslating(false)
     }
   }

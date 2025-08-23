@@ -23,6 +23,19 @@ export interface Sentence {
 
 export type DifficultyLevel = 'beginner' | 'intermediate' | 'advanced'
 
+export interface ReadingQuestion {
+  question: string
+  options: string[]
+  correctAnswer: string
+  explanation?: string
+}
+
+export interface ReadingPassage {
+  title: string
+  content: string
+  questions: ReadingQuestion[]
+}
+
 export interface DifficultyConfig {
   level: DifficultyLevel
   name: string
@@ -556,6 +569,16 @@ Make sure the Traditional Chinese (繁體中文) translations are accurate and n
       let currentMessage: Partial<DialogueMessage> = {}
 
       for (const line of lines) {
+        // 跳過學習筆記和說明文字
+        if (line.includes('Notes for Learners:') || 
+            line.includes('Key phrases for') || 
+            line.includes('Airport vocabulary:') || 
+            line.includes('Grammar focus:') ||
+            line.startsWith('---') ||
+            line.startsWith('**') && line.endsWith('**')) {
+          continue
+        }
+        
         // 匹配英文對話格式：Name: Text 或 **Name**: Text 或 Name - Text 或 Speaker X: Text
         const speakerMatch = line.match(/^(?:\*\*)?([A-Za-z\s]+)(?:\*\*)?[:\-]\s*(.+)$/i)
         // 匹配中文翻譯格式：中文: Translation
@@ -645,26 +668,26 @@ DIFFICULTY LEVEL: ${config.name} (${difficulty})
 
 CUSTOM REQUEST: ${customInput}
 
-For each dialogue line, provide:
-1. English sentence
-2. Traditional Chinese sentence translation
-3. Word-by-word translation
+IMPORTANT: Create ONLY the dialogue conversation. Do NOT include any learning notes, vocabulary lists, grammar explanations, or other educational content.
 
-Use this exact format:
+For each dialogue line, provide ONLY this exact format:
 
 Speaker: English sentence
 中文: Traditional Chinese translation
 單字: word1=翻譯1, word2=翻譯2, word3=翻譯3
 
 Make sure to:
-- Follow the user's custom request
+- Follow the user's custom request exactly
 - Use appropriate vocabulary for ${difficulty} level
 - Include ${config.grammar} grammar structures
 - Provide accurate Traditional Chinese (繁體中文) translations
 - Use Traditional Chinese characters only, not Simplified Chinese
-- Create 4-5 exchanges that are engaging and practical`
+- Create 4-5 exchanges that are engaging and practical
+- Return ONLY the dialogue, no additional content`
 
-      const userPrompt = `Please create a ${difficulty}-level English conversation based on my request: "${customInput}". The conversation should have 4-5 exchanges and be appropriate for ${difficulty} learners.`
+      const userPrompt = `Please create a ${difficulty}-level English conversation based on my request: "${customInput}". The conversation should have 4-5 exchanges and be appropriate for ${difficulty} learners. 
+
+IMPORTANT: Return ONLY the dialogue conversation in the specified format. Do NOT include any learning notes, vocabulary lists, grammar explanations, or other educational content.`
 
       const response = await this.client.chat.complete({
         model: this.modelName,
@@ -763,4 +786,562 @@ Make sure to:
       throw error
     }
   }
+
+  // 生成閱讀理解文章和題目
+  async generateReadingComprehension(difficulty: DifficultyLevel = 'beginner'): Promise<{
+    title: string
+    content: string
+    questions: Array<{
+      question: string
+      options: string[]
+      correctAnswer: string
+      explanation?: string
+    }>
+  }> {
+    try {
+      const config = this.difficultyConfigs[difficulty]
+      
+      // 根據難度選擇主題
+      const topics = {
+        beginner: ['daily life', 'family', 'food', 'weather', 'school', 'friends', 'animals', 'sports'],
+        intermediate: ['travel', 'work', 'hobbies', 'health', 'technology', 'environment', 'culture', 'education'],
+        advanced: ['business', 'politics', 'science', 'philosophy', 'economics', 'psychology', 'current events', 'global issues']
+      }
+      
+      const randomTopic = topics[difficulty][Math.floor(Math.random() * topics[difficulty].length)]
+      
+      const systemPrompt = `You are an experienced English teacher creating reading comprehension materials for ${difficulty}-level students.
+
+DIFFICULTY LEVEL: ${config.name} (${difficulty})
+- Vocabulary: ${config.vocabulary}
+- Grammar: ${config.grammar}
+- Reading Level: ${difficulty}
+
+TOPIC: ${randomTopic}
+
+Create a reading comprehension exercise with:
+1. A well-structured article (150-300 words for beginner, 250-400 words for intermediate, 350-500 words for advanced)
+2. 10 multiple-choice questions with 4 options each
+3. Clear correct answers
+4. Brief explanations for the correct answers
+
+IMPORTANT FORMATTING REQUIREMENTS:
+- Start with "TITLE: [article title]"
+- Follow with "CONTENT: [article content]"
+- Then provide exactly 10 questions in this format:
+  QUESTION X: [question text]
+  A) [option 1]
+  B) [option 2] 
+  C) [option 3]
+  D) [option 4]
+  ANSWER: [A/B/C/D]
+  EXPLANATION: [brief explanation]
+
+Make sure the content is appropriate for ${difficulty} level students and covers the topic of "${randomTopic}".`
+
+      const userPrompt = `Create a ${difficulty}-level reading comprehension exercise about "${randomTopic}". 
+      
+The article should be engaging, educational, and appropriate for ${difficulty} level English learners.
+
+The 10 questions should test:
+- Main idea comprehension (2-3 questions)
+- Detail recognition (3-4 questions) 
+- Vocabulary in context (2-3 questions)
+- Inference and reasoning (2-3 questions)
+
+Use the exact formatting specified in the system prompt.`
+
+      const response = await this.client.chat.complete({
+        model: this.modelName,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt }
+        ],
+        maxTokens: config.maxTokens + 1000, // 額外空間給題目
+        temperature: 0.7
+      })
+
+      const messageContent = response.choices[0]?.message?.content
+      const content = typeof messageContent === 'string'
+        ? messageContent
+        : (Array.isArray(messageContent) && messageContent[0]?.type === 'text')
+          ? messageContent[0].text
+          : ''
+
+      if (!content) {
+        throw new Error('API 響應中沒有內容')
+      }
+
+      return this.parseReadingComprehension(content)
+    } catch (error) {
+      console.error('生成閱讀理解失敗:', error)
+      throw error
+    }
+  }
+
+  // 解析閱讀理解內容
+  private parseReadingComprehension(content: string): {
+    title: string
+    content: string
+    questions: Array<{
+      question: string
+      options: string[]
+      correctAnswer: string
+      explanation?: string
+    }>
+  } {
+    try {
+      console.log('解析閱讀理解內容:', content)
+      
+      // 提取標題 - 更靈活的匹配
+      const titleMatch = content.match(/\*\*TITLE:\s*(.+?)\*\*/i) || 
+                        content.match(/TITLE:\s*(.+?)(?:\n|CONTENT:)/i)
+      const title = titleMatch ? titleMatch[1].trim() : '閱讀理解練習'
+      
+      // 提取文章內容 - 更靈活的匹配
+      const contentMatch = content.match(/\*\*CONTENT:\*\*\s*([\s\S]*?)(?=\*\*QUESTION\s*1:|QUESTION\s*1:|$)/i) ||
+                          content.match(/CONTENT:\s*([\s\S]*?)(?=QUESTION\s*1:|$)/i)
+      const articleContent = contentMatch ? contentMatch[1].trim() : ''
+      
+      // 提取題目 - 更靈活的匹配
+      const questions: Array<{
+        question: string
+        options: string[]
+        correctAnswer: string
+        explanation?: string
+      }> = []
+      
+      // 使用更靈活的正則表達式來匹配題目
+      const questionBlocks = content.split(/(?=\*\*QUESTION\s*\d+:|QUESTION\s*\d+:)/i)
+      
+      for (const block of questionBlocks) {
+        if (!block.trim() || !block.includes('QUESTION')) continue
+        
+        try {
+          // 提取題目編號和問題
+          const questionMatch = block.match(/\*\*QUESTION\s*(\d+):\s*(.+?)\*\*/i) ||
+                              block.match(/QUESTION\s*(\d+):\s*(.+?)(?=\n|$)/i)
+          
+          if (!questionMatch) continue
+          
+          const questionText = questionMatch[2].trim()
+          
+          // 提取選項 - 使用更簡單的匹配方式
+          const options: string[] = []
+          
+          // 嘗試匹配 A) B) C) D) 格式
+          const optionMatches = block.match(/([A-D]\)\s*[^A-D]+?)(?=\s*[B-D]\)|ANSWER|$)/gi)
+          if (optionMatches && optionMatches.length >= 4) {
+            for (const match of optionMatches) {
+              const cleanOption = match.replace(/^[A-D]\)\s*/, '').trim()
+              if (cleanOption) options.push(cleanOption)
+            }
+          }
+          
+          // 如果沒找到，嘗試匹配 A. B. C. D. 格式
+          if (options.length < 4) {
+            const dotOptionMatches = block.match(/([A-D]\.\s*[^A-D]+?)(?=\s*[B-D]\.|ANSWER|$)/gi)
+            if (dotOptionMatches && dotOptionMatches.length >= 4) {
+              options.length = 0 // 清空之前的結果
+              for (const match of dotOptionMatches) {
+                const cleanOption = match.replace(/^[A-D]\.\s*/, '').trim()
+                if (cleanOption) options.push(cleanOption)
+              }
+            }
+          }
+          
+          // 提取答案
+          const answerMatch = block.match(/\*\*ANSWER:\s*([A-D])\*\*/i) ||
+                            block.match(/ANSWER:\s*([A-D])/i)
+          const answer = answerMatch ? answerMatch[1] : ''
+          
+          // 提取解釋
+          const explanationMatch = block.match(/\*\*EXPLANATION:\*\*\s*(.+?)(?=\n\s*---|\n\s*QUESTION|\n\s*$|$)/i) ||
+                                 block.match(/EXPLANATION:\s*(.+?)(?=\n\s*---|\n\s*QUESTION|\n\s*$|$)/i)
+          const explanation = explanationMatch ? explanationMatch[1].trim() : ''
+          
+          // 驗證數據完整性
+          if (questionText && options.length >= 4 && answer && answer.match(/^[A-D]$/)) {
+            // 設置正確答案
+            const answerIndex = answer.charCodeAt(0) - 65 // A=0, B=1, C=2, D=3
+            const correctAnswer = options[answerIndex] || options[0]
+            
+            questions.push({
+              question: questionText,
+              options: options.slice(0, 4), // 確保只有4個選項
+              correctAnswer,
+              explanation
+            })
+          }
+        } catch (blockError) {
+          console.warn('解析題目區塊失敗:', blockError)
+          continue
+        }
+      }
+      
+      // 如果解析失敗，提供備用內容
+      if (!articleContent || questions.length === 0) {
+        console.warn(`解析失敗，使用備用內容。文章內容: ${articleContent ? '有' : '無'}, 題目數量: ${questions.length}`)
+        return this.getFallbackReadingContent()
+      }
+      
+      console.log(`解析結果: 標題="${title}", 內容長度=${articleContent.length}, 題目數量=${questions.length}`)
+      
+      return {
+        title,
+        content: articleContent,
+        questions: questions.slice(0, 10) // 確保只有10題
+      }
+      
+    } catch (error) {
+      console.error('解析閱讀理解內容失敗:', error)
+      return this.getFallbackReadingContent()
+    }
+  }
+
+  // 備用閱讀理解內容
+  private getFallbackReadingContent(): {
+    title: string
+    content: string
+    questions: Array<{
+      question: string
+      options: string[]
+      correctAnswer: string
+      explanation?: string
+    }>
+  } {
+    return {
+      title: 'AI Generated Reading Comprehension',
+      content: `Technology has transformed the way we communicate with each other. In the past, people wrote letters and waited weeks for replies. Today, we can send messages instantly through smartphones and computers.
+
+Social media platforms like Facebook, Instagram, and Twitter have made it easier to stay connected with friends and family around the world. We can share photos, videos, and thoughts with just a few clicks.
+
+However, this digital communication also has some challenges. People sometimes feel overwhelmed by constant notifications. Face-to-face conversations are becoming less common as people prefer texting or messaging.
+
+Despite these challenges, technology continues to evolve. Video calling has become especially important, allowing people to see each other even when they are far apart. This has been particularly valuable during times when travel is difficult.
+
+The future of communication will likely bring even more innovations, making it easier for people to connect across distances and cultures.`,
+      questions: [
+        {
+          question: 'How did people communicate in the past according to the passage?',
+          options: ['They used smartphones', 'They wrote letters', 'They used social media', 'They made video calls'],
+          correctAnswer: 'They wrote letters',
+          explanation: 'The passage states that "In the past, people wrote letters and waited weeks for replies."'
+        },
+        {
+          question: 'What is mentioned as a benefit of social media?',
+          options: ['It replaces face-to-face conversation', 'It creates notifications', 'It helps people stay connected globally', 'It makes people overwhelmed'],
+          correctAnswer: 'It helps people stay connected globally',
+          explanation: 'The passage mentions that social media makes it "easier to stay connected with friends and family around the world."'
+        },
+        {
+          question: 'What challenge does digital communication create?',
+          options: ['People write too many letters', 'People feel overwhelmed by notifications', 'Video calls are expensive', 'Social media is difficult to use'],
+          correctAnswer: 'People feel overwhelmed by notifications',
+          explanation: 'The passage states that "People sometimes feel overwhelmed by constant notifications."'
+        },
+        {
+          question: 'When has video calling been particularly valuable?',
+          options: ['When people want to share photos', 'When travel is difficult', 'When writing letters', 'When using social media'],
+          correctAnswer: 'When travel is difficult',
+          explanation: 'The passage mentions video calling has been "particularly valuable during times when travel is difficult."'
+        },
+        {
+          question: 'What does the word "evolve" mean in this context?',
+          options: ['Stop working', 'Become simpler', 'Develop and change', 'Become more expensive'],
+          correctAnswer: 'Develop and change',
+          explanation: 'In this context, "evolve" means to develop and change over time.'
+        },
+        {
+          question: 'What is becoming less common according to the passage?',
+          options: ['Text messaging', 'Video calling', 'Face-to-face conversations', 'Social media use'],
+          correctAnswer: 'Face-to-face conversations',
+          explanation: 'The passage states that "Face-to-face conversations are becoming less common."'
+        },
+        {
+          question: 'How quickly can we send messages today?',
+          options: ['In weeks', 'In days', 'In hours', 'Instantly'],
+          correctAnswer: 'Instantly',
+          explanation: 'The passage says "we can send messages instantly through smartphones and computers."'
+        },
+        {
+          question: 'What can people share on social media platforms?',
+          options: ['Only text messages', 'Only photos', 'Photos, videos, and thoughts', 'Only videos'],
+          correctAnswer: 'Photos, videos, and thoughts',
+          explanation: 'The passage mentions people can "share photos, videos, and thoughts" on social media.'
+        },
+        {
+          question: 'What is the main topic of this passage?',
+          options: ['The history of letters', 'Social media problems', 'How technology has changed communication', 'Video calling benefits'],
+          correctAnswer: 'How technology has changed communication',
+          explanation: 'The passage discusses how technology has transformed communication from letters to instant messaging.'
+        },
+        {
+          question: 'What does the passage predict about the future?',
+          options: ['People will stop using technology', 'Communication will become more difficult', 'There will be more communication innovations', 'Everyone will write letters again'],
+          correctAnswer: 'There will be more communication innovations',
+          explanation: 'The passage states that "The future of communication will likely bring even more innovations."'
+        }
+      ]
+    }
+  }
+
+  // SSE 串流生成閱讀理解
+  async *generateReadingComprehensionStream(
+    difficulty: DifficultyLevel,
+    onProgress?: (chunk: string, type: 'title' | 'content' | 'questions') => void
+  ): AsyncGenerator<{
+    type: 'title' | 'content' | 'questions' | 'complete'
+    data: string | {
+      title: string
+      content: string
+      questions: Array<{
+        question: string
+        options: string[]
+        correctAnswer: string
+        explanation?: string
+      }>
+    }
+  }> {
+    try {
+      const config = this.difficultyConfigs[difficulty]
+      
+      // 根據難度選擇主題
+      const topics = {
+        beginner: ['daily life', 'family', 'food', 'weather', 'school', 'friends', 'animals', 'sports'],
+        intermediate: ['travel', 'work', 'hobbies', 'health', 'technology', 'environment', 'culture', 'education'],
+        advanced: ['business', 'politics', 'science', 'philosophy', 'economics', 'psychology', 'current events', 'global issues']
+      }
+      
+      const randomTopic = topics[difficulty][Math.floor(Math.random() * topics[difficulty].length)]
+      
+      const systemPrompt = `You are an experienced English teacher creating reading comprehension materials for ${difficulty}-level students.
+
+DIFFICULTY LEVEL: ${config.name} (${difficulty})
+- Vocabulary: ${config.vocabulary}
+- Grammar: ${config.grammar}
+- Reading Level: ${difficulty}
+
+TOPIC: ${randomTopic}
+
+Create a reading comprehension exercise with:
+1. A well-structured article (150-300 words for beginner, 250-400 words for advanced, 350-500 words for advanced)
+2. 10 multiple-choice questions with 4 options each
+3. Clear correct answers
+4. Brief explanations for the correct answers
+
+IMPORTANT FORMATTING REQUIREMENTS:
+- Start with "TITLE: [article title]"
+- Follow with "CONTENT: [article content]"
+- Then provide exactly 10 questions in this format:
+  QUESTION X: [question text]
+  A) [option 1]
+  B) [option 2] 
+  C) [option 3]
+  D) [option 4]
+  ANSWER: [A/B/C/D]
+  EXPLANATION: [brief explanation]
+
+Make sure the content is appropriate for ${difficulty} level students and covers the topic of "${randomTopic}".`
+
+      const userPrompt = `Create a ${difficulty}-level reading comprehension exercise about "${randomTopic}". 
+      
+The article should be engaging, educational, and appropriate for ${difficulty} level English learners.
+
+The 10 questions should test:
+- Main idea comprehension (2-3 questions)
+- Detail recognition (3-4 questions) 
+- Vocabulary in context (2-3 questions)
+- Inference and reasoning (2-3 questions)
+
+Use the exact formatting specified in the system prompt.`
+
+      // 嘗試使用串流 API，如果失敗則回退到普通模式
+      try {
+        // 使用正確的 Mistral AI 串流 API 調用方式
+        const response = await this.client.chat.stream({
+          model: this.modelName,
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userPrompt }
+          ],
+          maxTokens: config.maxTokens + 1000,
+          temperature: 0.7,
+          stream: true // 明確指定串流模式
+        })
+
+        let accumulatedContent = ''
+        let currentType: 'title' | 'content' | 'questions' = 'title'
+        let hasFoundTitle = false
+        let hasFoundContent = false
+
+        for await (const chunk of response) {
+          // 使用 any 類型來處理不確定的 API 響應格式
+          let delta = ''
+          
+          try {
+            const chunkAny = chunk as any
+            
+            // 嘗試不同的屬性路徑
+            if (chunkAny?.choices?.[0]?.delta?.content) {
+              delta = chunkAny.choices[0].delta.content
+            } else if (chunkAny?.delta?.content) {
+              delta = chunkAny.delta.content
+            } else if (chunkAny?.content) {
+              delta = chunkAny.content
+            } else if (typeof chunkAny === 'string') {
+              delta = chunkAny
+            }
+          } catch (error) {
+            console.warn('解析串流片段失敗:', error)
+            continue
+          }
+          
+          if (delta) {
+            accumulatedContent += delta
+            
+            // 判斷當前生成的部分
+            if (!hasFoundTitle && accumulatedContent.includes('TITLE:')) {
+              currentType = 'title'
+              hasFoundTitle = true
+            } else if (!hasFoundContent && accumulatedContent.includes('CONTENT:')) {
+              currentType = 'content'
+              hasFoundContent = true
+            } else if (accumulatedContent.includes('QUESTION 1:')) {
+              currentType = 'questions'
+            }
+
+            // 回調進度更新
+            if (onProgress) {
+              onProgress(delta, currentType)
+            }
+
+            // 發送串流更新
+            yield {
+              type: currentType,
+              data: delta
+            }
+          }
+        }
+
+        // 解析完整內容
+        const parsedContent = this.parseReadingComprehension(accumulatedContent)
+        
+        // 發送完成事件
+        yield {
+          type: 'complete',
+          data: parsedContent
+        }
+
+      } catch (streamError) {
+        console.warn('串流 API 失敗，使用模擬串流回退:', streamError)
+        
+        // 使用模擬串流作為回退方案
+        console.log('使用普通 API 調用並模擬串流效果...')
+        const normalResponse = await this.client.chat.complete({
+          model: this.modelName,
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userPrompt }
+          ],
+          maxTokens: config.maxTokens + 1000,
+          temperature: 0.7
+        })
+
+        const messageContent = normalResponse.choices[0]?.message?.content
+        const fullContent = typeof messageContent === 'string'
+          ? messageContent
+          : (Array.isArray(messageContent) && messageContent[0]?.type === 'text')
+            ? messageContent[0].text
+            : ''
+
+        if (fullContent) {
+          // 模擬串流效果 - 分段發送內容
+          const chunks = this.splitContentForStreaming(fullContent)
+          
+          for (const chunk of chunks) {
+            // 模擬網絡延遲
+            await this.delay(100)
+            
+            // 發送串流更新
+            yield {
+              type: chunk.type,
+              data: chunk.content
+            }
+            
+            // 回調進度更新
+            if (onProgress) {
+              onProgress(chunk.content, chunk.type)
+            }
+          }
+
+          // 解析完整內容並發送完成事件
+          const parsedContent = this.parseReadingComprehension(fullContent)
+          yield {
+            type: 'complete',
+            data: parsedContent
+          }
+        } else {
+          throw new Error('API 響應中沒有內容')
+        }
+      }
+
+    } catch (error) {
+      console.error('SSE 生成閱讀理解失敗:', error)
+      throw error
+    }
+  }
+
+  // 將內容分段以模擬串流效果
+  private splitContentForStreaming(content: string): Array<{type: 'title' | 'content' | 'questions', content: string}> {
+    const chunks: Array<{type: 'title' | 'content' | 'questions', content: string}> = []
+    
+    // 提取標題
+    const titleMatch = content.match(/TITLE:\s*(.+?)(?:\n|CONTENT:)/i)
+    if (titleMatch) {
+      const title = titleMatch[1].trim()
+      // 將標題分成小塊
+      for (let i = 0; i < title.length; i += 5) {
+        chunks.push({
+          type: 'title',
+          content: title.slice(i, i + 5)
+        })
+      }
+    }
+    
+    // 提取內容
+    const contentMatch = content.match(/CONTENT:\s*([\s\S]*?)(?=QUESTION\s*1:|$)/i)
+    if (contentMatch) {
+      const articleContent = contentMatch[1].trim()
+      // 將內容分成單詞塊
+      const words = articleContent.split(' ')
+      for (let i = 0; i < words.length; i += 3) {
+        chunks.push({
+          type: 'content',
+          content: words.slice(i, i + 3).join(' ') + ' '
+        })
+      }
+    }
+    
+    // 提取題目
+    const questionsMatch = content.match(/(QUESTION\s*1:[\s\S]*)$/i)
+    if (questionsMatch) {
+      const questions = questionsMatch[1]
+      // 將題目分成行塊
+      const lines = questions.split('\n')
+      for (const line of lines) {
+        if (line.trim()) {
+          chunks.push({
+            type: 'questions',
+            content: line + '\n'
+          })
+        }
+      }
+    }
+    
+    return chunks
+  }
 }
+
+// 導出 service 實例
+export const mistralService = new MistralService(import.meta.env.VITE_MISTRAL_TOKEN || '6BjrhFY5nFujgMhUOKX2QujWCaDBXiTV')

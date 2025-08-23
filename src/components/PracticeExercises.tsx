@@ -2,16 +2,33 @@ import { useState } from 'react'
 import { RotateCcw, Play, Pause, Volume2, CheckCircle, XCircle, Trophy, Star } from 'lucide-react'
 import { useTheme } from '../contexts/ThemeContext'
 import { ttsService } from '../services/ttsService'
+import { mistralService } from '../services/mistralService'
 
 interface PracticeExercise {
   id: string
-  type: 'fill-blank' | 'listening' | 'word-matching' | 'sentence-reconstruction'
+  type: 'fill-blank' | 'listening' | 'word-matching' | 'sentence-reconstruction' | 'reading-comprehension'
   question: string
   answer: string
   options?: string[]
   audioText?: string
   difficulty: 'beginner' | 'intermediate' | 'advanced'
   points: number
+}
+
+interface ReadingPassage {
+  id: string
+  title: string
+  content: string
+  difficulty: 'beginner' | 'intermediate' | 'advanced'
+  questions: ReadingQuestion[]
+}
+
+interface ReadingQuestion {
+  id: string
+  question: string
+  options: string[]
+  correctAnswer: string
+  explanation?: string
 }
 
 interface ExerciseResult {
@@ -52,6 +69,172 @@ const PracticeExercises = ({ dialogue, onExerciseComplete }: PracticeExercisesPr
   const [insertIndex, setInsertIndex] = useState<number>(-1)
   const [touchStartPos, setTouchStartPos] = useState<{ x: number; y: number } | null>(null)
   const [isDraggingTouch, setIsDraggingTouch] = useState<boolean>(false)
+  
+  // 閱讀理解相關狀態
+  const [readingPassage, setReadingPassage] = useState<ReadingPassage | null>(null)
+  const [isGeneratingReading, setIsGeneratingReading] = useState(false)
+  const [readingDifficulty, setReadingDifficulty] = useState<'beginner' | 'intermediate' | 'advanced'>('beginner')
+  
+  // SSE 串流狀態
+  const [streamingTitle, setStreamingTitle] = useState('')
+  const [streamingContent, setStreamingContent] = useState('')
+  const [streamingQuestions, setStreamingQuestions] = useState('')
+  const [isStreaming, setIsStreaming] = useState(false)
+  
+  // 移除調試日誌，這些變量現在會被實際使用
+  
+  // 使用已導出的 MistralService 實例
+
+
+  // 生成閱讀理解（帶 SSE 支持）
+  const generateReadingComprehension = async () => {
+    setIsGeneratingReading(true)
+    setIsStreaming(true)
+    
+    // 重置串流狀態
+    setStreamingTitle('')
+    setStreamingContent('')
+    setStreamingQuestions('')
+    
+    try {
+      // 嘗試使用 SSE 串流生成
+      try {
+        const streamGenerator = mistralService.generateReadingComprehensionStream(
+          readingDifficulty,
+          (chunk, type) => {
+            console.log(`收到 ${type} 片段:`, chunk)
+            // 實時更新串流內容
+            switch (type) {
+              case 'title':
+                setStreamingTitle(prev => prev + chunk)
+                break
+              case 'content':
+                setStreamingContent(prev => prev + chunk)
+                break
+              case 'questions':
+                setStreamingQuestions(prev => prev + chunk)
+                break
+            }
+          }
+        )
+        
+        for await (const update of streamGenerator) {
+          if (update.type === 'complete') {
+            // 完成生成
+            const apiResponse = update.data as {
+              title: string
+              content: string
+              questions: Array<{
+                question: string
+                options: string[]
+                correctAnswer: string
+                explanation?: string
+              }>
+            }
+            
+            const passage: ReadingPassage = {
+              id: `reading-${Date.now()}`,
+              title: apiResponse.title,
+              content: apiResponse.content,
+              difficulty: readingDifficulty,
+              questions: apiResponse.questions.map((q, index) => ({
+                id: `question-${index}`,
+                question: q.question,
+                options: q.options,
+                correctAnswer: q.correctAnswer,
+                explanation: q.explanation
+              }))
+            }
+            
+            setReadingPassage(passage)
+            
+            // 將閱讀理解題目添加到練習題中
+            const readingExercises = passage.questions.map((q, index) => ({
+              id: `reading-${passage.id}-${index}`,
+              type: 'reading-comprehension' as const,
+              question: q.question,
+              answer: q.correctAnswer,
+              options: q.options,
+              difficulty: readingDifficulty,
+              points: 15
+            }))
+            
+            setExercises(readingExercises)
+            setCurrentExerciseIndex(0)
+            setUserAnswers({})
+            setShowResults(false)
+            setScore(0)
+            setResults([])
+            setStartTime(Date.now())
+            break
+          }
+        }
+      } catch (streamError) {
+        console.warn('串流生成失敗，回退到普通模式:', streamError)
+        // 回退到普通生成
+        const apiResponse = await mistralService.generateReadingComprehension(readingDifficulty)
+        
+        const passage: ReadingPassage = {
+          id: `reading-${Date.now()}`,
+          title: apiResponse.title,
+          content: apiResponse.content,
+          difficulty: readingDifficulty,
+          questions: apiResponse.questions.map((q, index) => ({
+            id: `question-${index}`,
+            question: q.question,
+            options: q.options,
+            correctAnswer: q.correctAnswer,
+            explanation: q.explanation
+          }))
+        }
+        
+        setReadingPassage(passage)
+        
+        const readingExercises = passage.questions.map((q, index) => ({
+          id: `reading-${passage.id}-${index}`,
+          type: 'reading-comprehension' as const,
+          question: q.question,
+          answer: q.correctAnswer,
+          options: q.options,
+          difficulty: readingDifficulty,
+          points: 15
+        }))
+        
+        setExercises(readingExercises)
+        setCurrentExerciseIndex(0)
+        setUserAnswers({})
+        setShowResults(false)
+        setScore(0)
+        setResults([])
+        setStartTime(Date.now())
+      }
+      
+    } catch (error) {
+      console.error('生成閱讀理解失敗:', error)
+      
+      // 提供更詳細的錯誤信息
+      let errorMessage = '生成閱讀理解失敗，請稍後再試。'
+      if (error instanceof Error) {
+        if (error.message.includes('429') || error.message.includes('capacity exceeded')) {
+          errorMessage = 'API 使用量已達上限，請稍後再試或聯繫管理員。'
+        } else if (error.message.includes('rate limit')) {
+          errorMessage = 'API 調用頻率過高，請稍候幾分鐘後再試。'
+        } else if (error.message.includes('network') || error.message.includes('fetch')) {
+          errorMessage = '網絡連接問題，請檢查網絡設置後再試。'
+        }
+      }
+      
+      alert(errorMessage)
+    } finally {
+      // 清空串流狀態
+      setStreamingTitle('')
+      setStreamingContent('')
+      setStreamingQuestions('')
+      setIsGeneratingReading(false)
+      setIsStreaming(false)
+    }
+  }
+
 
 
   // 生成練習題
@@ -60,6 +243,8 @@ const PracticeExercises = ({ dialogue, onExerciseComplete }: PracticeExercisesPr
 
     const newExercises: PracticeExercise[] = []
     const words = new Set<string>()
+    const usedSentences = new Set<string>()
+    const usedWords = new Set<string>()
     
     // 收集所有單字
     dialogue.forEach(message => {
@@ -69,22 +254,42 @@ const PracticeExercises = ({ dialogue, onExerciseComplete }: PracticeExercisesPr
     })
 
     const wordArray = Array.from(words)
+    const availableMessages = dialogue.filter(message => message.text.length > 10) // 過濾太短的句子
     
-    // 生成 10 道隨機練習題
-    for (let i = 0; i < Math.min(10, dialogue.length * 2); i++) {
+    // 生成練習題，確保不重複
+    let attempts = 0
+    const maxAttempts = 100 // 防止無限循環
+    
+    while (newExercises.length < Math.min(10, Math.min(dialogue.length * 2, wordArray.length * 2)) && attempts < maxAttempts) {
+      attempts++
+      
       const exerciseType = Math.floor(Math.random() * 4)
-      const randomMessage = dialogue[Math.floor(Math.random() * dialogue.length)]
-      const randomWord = wordArray[Math.floor(Math.random() * wordArray.length)]
+      let randomMessage: any
+      let randomWord: string
+      
+      // 智能選擇未使用的句子和單字
+      const unusedMessages = availableMessages.filter(msg => !usedSentences.has(msg.text))
+      const unusedWords = wordArray.filter((word: string) => !usedWords.has(word))
+      
+      if (unusedMessages.length === 0 || unusedWords.length === 0) {
+        // 如果沒有未使用的內容，重置使用狀態
+        usedSentences.clear()
+        usedWords.clear()
+        continue
+      }
+      
+      randomMessage = unusedMessages[Math.floor(Math.random() * unusedMessages.length)]
+      randomWord = unusedWords[Math.floor(Math.random() * unusedWords.length)]
       
       if (!randomWord || !randomMessage) continue
       
-      let exercise: PracticeExercise
+      let exercise: PracticeExercise | null = null
 
       switch (exerciseType) {
         case 0: // 填空題
           if (randomMessage.text.includes(randomWord)) {
             exercise = {
-              id: `exercise-${i}`,
+              id: `exercise-${Date.now()}-${Math.random()}`,
               type: 'fill-blank',
               question: randomMessage.text.replace(new RegExp(randomWord, 'gi'), '_____'),
               answer: randomWord,
@@ -92,14 +297,14 @@ const PracticeExercises = ({ dialogue, onExerciseComplete }: PracticeExercisesPr
               difficulty: 'beginner',
               points: 10
             }
-          } else {
-            continue
+            usedSentences.add(randomMessage.text)
+            usedWords.add(randomWord)
           }
           break
 
         case 1: // 聽力練習
           exercise = {
-            id: `exercise-${i}`,
+            id: `exercise-${Date.now()}-${Math.random()}`,
             type: 'listening',
             question: '聽聽看，填入正確的單字：',
             answer: randomWord,
@@ -107,6 +312,7 @@ const PracticeExercises = ({ dialogue, onExerciseComplete }: PracticeExercisesPr
             difficulty: 'intermediate',
             points: 15
           }
+          usedWords.add(randomWord)
           break
 
         case 2: // 單字配對
@@ -117,7 +323,7 @@ const PracticeExercises = ({ dialogue, onExerciseComplete }: PracticeExercisesPr
           }
           
           exercise = {
-            id: `exercise-${i}`,
+            id: `exercise-${Date.now()}-${Math.random()}`,
             type: 'word-matching',
             question: `將 "${randomWord}" 與正確的中文翻譯配對：`,
             answer: translation,
@@ -125,14 +331,15 @@ const PracticeExercises = ({ dialogue, onExerciseComplete }: PracticeExercisesPr
             difficulty: 'beginner',
             points: 10
           }
+          usedWords.add(randomWord)
           break
 
         case 3: // 句子重組
-          const words = randomMessage.text.split(' ').filter(word => word.length > 0)
-          if (words.length >= 3) {
-            const shuffledWords = [...words].sort(() => Math.random() - 0.5)
+          const sentenceWords = randomMessage.text.split(' ').filter((word: string) => word.length > 0)
+          if (sentenceWords.length >= 3 && !usedSentences.has(randomMessage.text)) {
+            const shuffledWords = [...sentenceWords].sort(() => Math.random() - 0.5)
             exercise = {
-              id: `exercise-${i}`,
+              id: `exercise-${Date.now()}-${Math.random()}`,
               type: 'sentence-reconstruction',
               question: '重新排列單字，組成正確的句子：',
               answer: randomMessage.text,
@@ -140,16 +347,14 @@ const PracticeExercises = ({ dialogue, onExerciseComplete }: PracticeExercisesPr
               difficulty: 'advanced',
               points: 20
             }
-          } else {
-            continue
+            usedSentences.add(randomMessage.text)
           }
           break
-
-        default:
-          continue
       }
-
-      newExercises.push(exercise)
+      
+      if (exercise) {
+        newExercises.push(exercise)
+      }
     }
 
     setExercises(newExercises)
@@ -935,17 +1140,40 @@ const PracticeExercises = ({ dialogue, onExerciseComplete }: PracticeExercisesPr
           <span className={themeConfig.colors.text.primary}>📚</span>
           互動式練習
         </h2>
-        <button
-          onClick={generateExercises}
-          disabled={dialogue.length === 0}
-          className={`bg-gradient-to-r ${themeConfig.colors.button.primary} hover:${themeConfig.colors.button.hover} disabled:bg-gradient-to-r ${themeConfig.colors.gradient.slate} disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg transition-all duration-200 flex items-center justify-center gap-2 active:scale-95 min-h-[44px] min-w-[44px]`}
-        >
-          <RotateCcw className="w-4 h-4" />
-          生成練習題
-        </button>
+        <div className="flex items-center gap-3">
+          {/* 閱讀理解選擇器 */}
+          <div className="flex items-center gap-2">
+            <span className={`${themeConfig.colors.text.tertiary} text-sm`}>難度:</span>
+            <select
+              value={readingDifficulty}
+              onChange={(e) => setReadingDifficulty(e.target.value as 'beginner' | 'intermediate' | 'advanced')}
+              className={`bg-gradient-to-r ${themeConfig.colors.background.tertiary} ${themeConfig.colors.text.primary} border ${themeConfig.colors.border.primary} rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-${themeConfig.colors.border.accent}`}
+            >
+              <option value="beginner">初級</option>
+              <option value="intermediate">中級</option>
+              <option value="advanced">高級</option>
+            </select>
+            <button
+              onClick={generateReadingComprehension}
+              disabled={isGeneratingReading}
+              className={`bg-gradient-to-r ${themeConfig.colors.gradient.purple} hover:${themeConfig.colors.gradient.pink} disabled:bg-gradient-to-r ${themeConfig.colors.gradient.slate} text-white px-4 py-2 rounded-lg transition-all duration-200 flex items-center justify-center gap-2 active:scale-95 min-h-[44px] min-w-[44px]`}
+            >
+              {isGeneratingReading ? '生成中...' : '📖 閱讀理解'}
+            </button>
+          </div>
+          
+          <button
+            onClick={generateExercises}
+            disabled={dialogue.length === 0}
+            className={`bg-gradient-to-r ${themeConfig.colors.button.primary} hover:${themeConfig.colors.button.hover} disabled:bg-gradient-to-r ${themeConfig.colors.gradient.slate} disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg transition-all duration-200 flex items-center justify-center gap-2 active:scale-95 min-h-[44px] min-w-[44px]`}
+          >
+            <RotateCcw className="w-4 h-4" />
+            生成練習題
+          </button>
+        </div>
       </div>
 
-      {exercises.length === 0 ? (
+      {exercises.length === 0 && !isStreaming ? (
         <div className="text-center py-12">
           <div className="text-6xl mb-4">📝</div>
           <p className={`${themeConfig.colors.text.tertiary} text-lg`}>還沒有練習題</p>
@@ -956,10 +1184,104 @@ const PracticeExercises = ({ dialogue, onExerciseComplete }: PracticeExercisesPr
             }
           </p>
         </div>
+      ) : isStreaming ? (
+        <div className="space-y-6">
+          {/* 串流生成中的界面 */}
+          <div className={`bg-gradient-to-br ${themeConfig.colors.background.secondary} border ${themeConfig.colors.border.accent} rounded-2xl p-8 shadow-2xl backdrop-blur-xl`}>
+            {/* 生成狀態標題 */}
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-3">
+                <div className={`w-10 h-10 bg-gradient-to-br ${themeConfig.colors.gradient.purple} rounded-xl flex items-center justify-center shadow-lg animate-pulse`}>
+                  <span className="text-lg">✨</span>
+                </div>
+                <div>
+                  <h3 className={`text-xl font-bold ${themeConfig.colors.text.primary} mb-1`}>
+                    {streamingTitle ? `📝 ${streamingTitle}` : 'AI 正在生成標題...'}
+                  </h3>
+                  <div className="flex items-center gap-2">
+                    <span className={`${themeConfig.colors.text.tertiary} text-sm`}>難度等級:</span>
+                    <div className={`px-3 py-1 rounded-full text-xs font-bold ${
+                      readingDifficulty === 'beginner' ? 'bg-gradient-to-r from-green-400 to-emerald-500 text-white shadow-lg' :
+                      readingDifficulty === 'intermediate' ? 'bg-gradient-to-r from-yellow-400 to-orange-500 text-white shadow-lg' :
+                      'bg-gradient-to-r from-red-400 to-pink-500 text-white shadow-lg'
+                    }`}>
+                      {readingDifficulty === 'beginner' ? '🌟 初級' :
+                       readingDifficulty === 'intermediate' ? '⭐ 中級' : '🔥 高級'}
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              {/* 生成進度 */}
+              <div className="text-right">
+                <div className={`${themeConfig.colors.text.accent} text-sm animate-pulse`}>
+                  {streamingQuestions ? '📝 生成題目中...' : 
+                   streamingContent ? '📄 生成文章中...' : 
+                   streamingTitle ? '📝 生成標題中...' : '🚀 準備生成...'}
+                </div>
+              </div>
+            </div>
+            
+            {/* 串流文章內容 */}
+            <div className={`bg-gradient-to-r ${themeConfig.colors.background.tertiary} rounded-xl p-6 border ${themeConfig.colors.border.primary} shadow-inner min-h-[200px]`}>
+              <div className="flex items-center gap-2 mb-4">
+                <div className={`w-2 h-2 ${themeConfig.colors.text.accent} rounded-full animate-pulse`}></div>
+                <span className={`${themeConfig.colors.text.accent} text-sm font-medium`}>實時生成中...</span>
+              </div>
+              <div className={`${themeConfig.colors.text.primary} leading-relaxed text-base whitespace-pre-line`}>
+                {streamingContent || '等待內容生成...'}
+                {streamingContent && <span className="animate-pulse text-blue-500">|</span>}
+              </div>
+              
+              {/* 題目生成預覽 */}
+              {streamingQuestions && (
+                <div className="mt-6 pt-6 border-t border-dashed border-gray-300">
+                  <div className={`${themeConfig.colors.text.accent} text-sm font-medium mb-2`}>📝 生成題目中...</div>
+                  <div className={`${themeConfig.colors.text.tertiary} text-sm whitespace-pre-line`}>
+                    {streamingQuestions}
+                    <span className="animate-pulse text-blue-500">|</span>
+                  </div>
+                </div>
+              )}
+            </div>
+            
+            {/* 生成提示 */}
+            <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="flex items-center gap-2 text-blue-700">
+                <span className="text-sm">💡</span>
+                <span className="text-sm">
+                  {streamingQuestions ? '正在生成最後的題目，請稍候...' :
+                   streamingContent ? '文章內容正在生成中，接下來會生成題目...' :
+                   streamingTitle ? '標題已生成，正在生成文章內容...' : '正在準備生成內容...'}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
       ) : showResults ? (
         renderResults()
       ) : (
         <div className="space-y-6">
+          {/* 閱讀理解文章 */}
+          {readingPassage && (
+            <div className={`bg-gradient-to-r ${themeConfig.colors.background.secondary} border ${themeConfig.colors.border.accent} rounded-xl p-6`}>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className={`text-xl font-bold ${themeConfig.colors.text.primary}`}>{readingPassage.title}</h3>
+                <div className={`px-3 py-1 rounded-full text-xs font-medium ${
+                  readingPassage.difficulty === 'beginner' ? 'bg-green-100 text-green-800' :
+                  readingPassage.difficulty === 'intermediate' ? 'bg-yellow-100 text-yellow-800' :
+                  'bg-red-100 text-red-800'
+                }`}>
+                  {readingPassage.difficulty === 'beginner' ? '初級' :
+                   readingPassage.difficulty === 'intermediate' ? '中級' : '高級'}
+                </div>
+              </div>
+              <div className={`${themeConfig.colors.text.primary} leading-relaxed whitespace-pre-line`}>
+                {readingPassage.content}
+              </div>
+            </div>
+          )}
+          
           {/* 進度指示器 */}
           <div className={`flex items-center justify-between bg-gradient-to-r ${themeConfig.colors.background.secondary} rounded-lg p-3`}>
             <div className={`${themeConfig.colors.text.primary} text-sm`}>
@@ -987,7 +1309,9 @@ const PracticeExercises = ({ dialogue, onExerciseComplete }: PracticeExercisesPr
                   exercises[currentExerciseIndex]?.type === 'fill-blank' ? '填空題' :
                   exercises[currentExerciseIndex]?.type === 'listening' ? '聽力練習' :
                   exercises[currentExerciseIndex]?.type === 'word-matching' ? '單字配對' :
-                  '句子重組'
+                  exercises[currentExerciseIndex]?.type === 'sentence-reconstruction' ? '句子重組' :
+                  exercises[currentExerciseIndex]?.type === 'reading-comprehension' ? '閱讀理解' :
+                  '未知題型'
                 }
               </div>
               <div className={`text-sm ${themeConfig.colors.text.accent}`}>
