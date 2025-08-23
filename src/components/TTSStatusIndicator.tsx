@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { Volume2, VolumeX, Smartphone, Monitor, CheckCircle } from 'lucide-react'
 import { ttsService } from '../services/ttsService'
+import { useTheme } from '../contexts/ThemeContext'
 
 interface TTSStatusIndicatorProps {
   className?: string
@@ -11,6 +12,7 @@ const TTSStatusIndicator: React.FC<TTSStatusIndicatorProps> = ({
   className = '', 
   showDetails = false 
 }) => {
+  const { themeConfig } = useTheme()
   const [status, setStatus] = useState({ supported: false, device: 'desktop' as 'mobile' | 'desktop' })
   const [availableVoices, setAvailableVoices] = useState(0)
   const [isPlaying, setIsPlaying] = useState(false)
@@ -37,7 +39,7 @@ const TTSStatusIndicator: React.FC<TTSStatusIndicatorProps> = ({
 
   if (!status.supported) {
     return (
-      <div className={`inline-flex items-center gap-2 px-3 py-1 bg-red-900/20 border border-red-500/30 rounded-lg text-red-400 text-sm ${className}`}>
+      <div className={`inline-flex items-center gap-2 px-3 py-1 bg-gradient-to-r ${themeConfig.colors.background.tertiary} border ${themeConfig.colors.border.accent} rounded-lg ${themeConfig.colors.text.accent} text-sm ${className}`}>
         <VolumeX className="w-4 h-4" />
         <span>語音不支持</span>
       </div>
@@ -47,14 +49,14 @@ const TTSStatusIndicator: React.FC<TTSStatusIndicatorProps> = ({
   return (
     <div className={`inline-flex items-center gap-2 ${className}`}>
       {/* 主要狀態指示器 */}
-      <div className="inline-flex items-center gap-2 px-3 py-1 bg-green-900/20 border border-green-500/30 rounded-lg text-green-400 text-sm">
+      <div className={`inline-flex items-center gap-2 px-3 py-1 bg-gradient-to-r ${themeConfig.colors.background.tertiary} border ${themeConfig.colors.border.accent} rounded-lg ${themeConfig.colors.text.accent} text-sm`}>
         <Volume2 className={`w-4 h-4 ${isPlaying ? 'animate-pulse' : ''}`} />
         <span>語音就緒</span>
         {isPlaying && <span className="ml-1">• 播放中</span>}
       </div>
 
       {/* 設備類型指示器 */}
-      <div className="inline-flex items-center gap-1 px-2 py-1 bg-slate-700/50 border border-slate-600/50 rounded-lg text-slate-300 text-xs">
+      <div className={`inline-flex items-center gap-1 px-2 py-1 bg-gradient-to-r ${themeConfig.colors.background.tertiary} border ${themeConfig.colors.border.primary} rounded-lg ${themeConfig.colors.text.tertiary} text-xs`}>
         {status.device === 'mobile' ? (
           <>
             <Smartphone className="w-3 h-3" />
@@ -70,7 +72,7 @@ const TTSStatusIndicator: React.FC<TTSStatusIndicatorProps> = ({
 
       {/* 詳細信息 */}
       {showDetails && (
-        <div className="inline-flex items-center gap-1 px-2 py-1 bg-blue-900/20 border border-blue-500/30 rounded-lg text-blue-400 text-xs">
+        <div className={`inline-flex items-center gap-1 px-2 py-1 bg-gradient-to-r ${themeConfig.colors.background.tertiary} border ${themeConfig.colors.border.accent} rounded-lg ${themeConfig.colors.text.accent} text-xs`}>
           <CheckCircle className="w-3 h-3" />
           <span>{availableVoices} 個語音</span>
         </div>

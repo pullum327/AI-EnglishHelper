@@ -95,14 +95,14 @@ export class TTSService {
     if (device === 'mobile') {
       // 移動設備優化設置
       return {
-        rate: 0.9,      // 稍慢的語速
+        rate: 0.7,      // 稍慢的語速
         pitch: 1.0,     // 正常音調
         volume: 0.8     // 適中音量
       }
     } else {
       // 桌面設備設置
       return {
-        rate: 0.8,      // 較慢語速，便於學習
+        rate: 0.7,      // 較慢語速，便於學習
         pitch: 1.0,     // 正常音調
         volume: 1.0     // 最大音量
       }

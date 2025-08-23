@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { ChevronDown, Search, Check } from 'lucide-react'
+import { useTheme } from '../contexts/ThemeContext'
 
 interface ModelSelectorProps {
   currentModel: string
@@ -14,6 +15,7 @@ const ModelSelector = ({
   onModelChange, 
   isDisabled = false 
 }: ModelSelectorProps) => {
+  const { themeConfig } = useTheme()
   const [isOpen, setIsOpen] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const dropdownRef = useRef<HTMLDivElement>(null)
@@ -52,7 +54,7 @@ const ModelSelector = ({
       <button
         onClick={() => setIsOpen(!isOpen)}
         disabled={isDisabled}
-        className={`flex items-center justify-between w-full px-4 py-2 bg-white/20 border border-white/30 rounded-xl text-white font-medium transition-all duration-200 hover:bg-white/30 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+        className={`flex items-center justify-between w-full px-4 py-2 bg-white/20 border border-white/30 rounded-xl text-white font-medium transition-all duration-200 hover:bg-white/30 focus:outline-none focus:ring-2 focus:ring-${themeConfig.colors.border.accent} focus:border-transparent ${
           isDisabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
         }`}
       >
@@ -65,17 +67,17 @@ const ModelSelector = ({
 
       {/* 下拉選單 */}
       {isOpen && (
-        <div className="absolute top-full mt-2 w-80 bg-white rounded-2xl shadow-2xl border border-gray-200 z-50 max-h-96 overflow-hidden">
+        <div className={`absolute top-full mt-2 w-80 ${themeConfig.colors.background.tertiary} rounded-2xl shadow-2xl border ${themeConfig.colors.border.primary} z-50 max-h-96 overflow-hidden`}>
           {/* 搜尋欄 */}
-          <div className="p-4 border-b border-gray-100">
+          <div className={`p-4 border-b ${themeConfig.colors.border.secondary}`}>
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <Search className={`absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 ${themeConfig.colors.text.tertiary}`} />
               <input
                 type="text"
                 placeholder="search model..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className={`w-full pl-10 pr-4 py-2 ${themeConfig.colors.background.secondary} border ${themeConfig.colors.border.primary} rounded-lg text-sm ${themeConfig.colors.text.primary} placeholder-${themeConfig.colors.text.tertiary} focus:outline-none focus:ring-2 focus:ring-${themeConfig.colors.border.accent} focus:border-transparent`}
                 autoFocus
               />
             </div>
@@ -96,34 +98,34 @@ const ModelSelector = ({
                       setIsOpen(false)
                       setSearchTerm('')
                     }}
-                    className={`w-full px-4 py-3 text-left hover:bg-gray-50 transition-colors duration-150 flex items-center justify-between ${
-                      isCurrent ? 'bg-blue-50 border-l-4 border-blue-500' : ''
+                    className={`w-full px-4 py-3 text-left hover:${themeConfig.colors.background.secondary} transition-colors duration-150 flex items-center justify-between ${
+                      isCurrent ? `bg-gradient-to-r ${themeConfig.colors.background.tertiary} border-l-4 ${themeConfig.colors.border.accent}` : ''
                     }`}
                   >
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center">
-                        <span className="text-sm font-medium text-gray-600">
+                      <div className={`w-8 h-8 ${themeConfig.colors.background.secondary} rounded-lg flex items-center justify-center`}>
+                        <span className={`text-sm font-medium ${themeConfig.colors.text.tertiary}`}>
                           {isFree ? '🆓' : '💳'}
                         </span>
                       </div>
                       <div className="text-left">
-                        <div className="text-sm font-medium text-gray-900">
+                        <div className={`text-sm font-medium ${themeConfig.colors.text.primary}`}>
                           {getModelDisplayName(model)}
                         </div>
-                        <div className="text-xs text-gray-500">
+                        <div className={`text-xs ${themeConfig.colors.text.tertiary}`}>
                           {model}
                         </div>
                       </div>
                     </div>
                     
                     {isCurrent && (
-                      <Check className="w-4 h-4 text-blue-500" />
+                      <Check className={`w-4 h-4 ${themeConfig.colors.text.accent}`} />
                     )}
                   </button>
                 )
               })
             ) : (
-              <div className="px-4 py-8 text-center text-gray-500">
+              <div className={`px-4 py-8 text-center ${themeConfig.colors.text.tertiary}`}>
                 <div className="text-sm">沒有找到匹配的模型</div>
                 <div className="text-xs mt-1">嘗試使用不同的搜尋詞</div>
               </div>
@@ -131,15 +133,15 @@ const ModelSelector = ({
           </div>
 
           {/* 底部當前選中模型顯示 */}
-          <div className="p-4 border-t border-gray-100 bg-gray-50">
+          <div className={`p-4 border-t ${themeConfig.colors.border.secondary} ${themeConfig.colors.background.secondary}`}>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <span className="text-sm font-medium text-gray-700">當前模型：</span>
-                <span className="text-sm text-gray-900">{getModelDisplayName(currentModel)}</span>
+                <span className={`text-sm font-medium ${themeConfig.colors.text.secondary}`}>當前模型：</span>
+                <span className={`text-sm ${themeConfig.colors.text.primary}`}>{getModelDisplayName(currentModel)}</span>
               </div>
               <button
                 onClick={() => setIsOpen(false)}
-                className="px-3 py-1 bg-gray-200 hover:bg-gray-300 text-gray-700 text-xs rounded-lg transition-colors duration-150"
+                className={`px-3 py-1 ${themeConfig.colors.background.tertiary} hover:${themeConfig.colors.background.cardHover} ${themeConfig.colors.text.primary} text-xs rounded-lg transition-colors duration-150`}
               >
                 關閉
               </button>

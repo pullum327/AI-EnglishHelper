@@ -112,20 +112,20 @@ export const themeConfigs: Record<Theme, ThemeConfig> = {
         accent: 'border-gray-400/70'
       },
       button: {
-        primary: 'bg-gradient-to-r from-blue-600 to-indigo-600',
-        secondary: 'bg-gradient-to-r from-gray-300/90 to-gray-400/90',
-        accent: 'bg-gradient-to-r from-green-600 to-teal-600',
-        hover: 'hover:from-blue-700 hover:to-indigo-700'
+        primary: 'bg-gradient-to-r from-blue-500 to-indigo-500',
+        secondary: 'bg-gradient-to-r from-gray-400/90 to-gray-500/90',
+        accent: 'bg-gradient-to-r from-green-500 to-teal-500',
+        hover: 'hover:from-blue-600 hover:to-indigo-600'
       },
       gradient: {
-        cyan: 'from-blue-600 to-indigo-600',
-        blue: 'from-indigo-600 to-blue-600',
-        emerald: 'from-green-600 to-teal-600',
-        teal: 'from-teal-600 to-green-600',
-        purple: 'from-purple-600 to-pink-600',
-        pink: 'from-pink-600 to-purple-600',
-        slate: 'from-gray-600 to-slate-600',
-        gray: 'from-slate-600 to-gray-600'
+        cyan: 'from-blue-500 to-indigo-500',
+        blue: 'from-indigo-500 to-blue-500',
+        emerald: 'from-green-500 to-teal-500',
+        teal: 'from-teal-500 to-green-500',
+        purple: 'from-purple-500 to-pink-500',
+        pink: 'from-pink-500 to-purple-500',
+        slate: 'from-gray-500 to-slate-500',
+        gray: 'from-slate-500 to-gray-500'
       }
     }
   }

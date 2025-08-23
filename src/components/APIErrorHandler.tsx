@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useTheme } from '../contexts/ThemeContext'
 
 interface APIErrorHandlerProps {
   error: Error | null
@@ -7,6 +8,7 @@ interface APIErrorHandlerProps {
 }
 
 const APIErrorHandler = ({ error, onRetry, onReset }: APIErrorHandlerProps) => {
+  const { themeConfig } = useTheme()
   const [isRetrying, setIsRetrying] = useState(false)
 
   if (!error) return null
@@ -51,23 +53,23 @@ const APIErrorHandler = ({ error, onRetry, onReset }: APIErrorHandlerProps) => {
   }
 
   return (
-    <div className="bg-red-600/20 border border-red-400/30 rounded-lg p-4 backdrop-blur-sm">
+    <div className={`bg-gradient-to-r ${themeConfig.colors.background.tertiary} border ${themeConfig.colors.border.accent} rounded-lg p-4 backdrop-blur-sm`}>
       <div className="flex items-start gap-3">
         <div className="text-2xl">{getErrorIcon(error)}</div>
         <div className="flex-1">
-          <h3 className="text-red-400 font-semibold mb-2">API 錯誤</h3>
-          <p className="text-red-300 text-sm mb-3">
+          <h3 className={`${themeConfig.colors.text.accent} font-semibold mb-2`}>API 錯誤</h3>
+          <p className={`${themeConfig.colors.text.tertiary} text-sm mb-3`}>
             {getErrorMessage(error)}
           </p>
           <div className="flex gap-3">
             <button
               onClick={handleRetry}
               disabled={isRetrying}
-              className="bg-red-600/20 hover:bg-red-600/30 text-red-400 font-medium py-2 px-4 rounded-lg transition-colors duration-200 border border-red-400/30 flex items-center gap-2"
+              className={`bg-gradient-to-r ${themeConfig.colors.background.tertiary} hover:${themeConfig.colors.background.cardHover} ${themeConfig.colors.text.accent} font-medium py-2 px-4 rounded-lg transition-all duration-200 border ${themeConfig.colors.border.accent} flex items-center gap-2`}
             >
               {isRetrying ? (
                 <>
-                  <div className="w-4 h-4 border-2 border-red-400 border-t-transparent rounded-full animate-spin"></div>
+                  <div className={`w-4 h-4 border-2 ${themeConfig.colors.border.accent} border-t-transparent rounded-full animate-spin`}></div>
                   重試中...
                 </>
               ) : (
@@ -79,7 +81,7 @@ const APIErrorHandler = ({ error, onRetry, onReset }: APIErrorHandlerProps) => {
             </button>
             <button
               onClick={onReset}
-              className="bg-gray-600/20 hover:bg-gray-600/30 text-gray-300 font-medium py-2 px-4 rounded-lg transition-colors duration-200 border border-gray-400/30"
+              className={`bg-gradient-to-r ${themeConfig.colors.gradient.slate} hover:${themeConfig.colors.gradient.gray} text-white font-medium py-2 px-4 rounded-lg transition-all duration-200 border ${themeConfig.colors.border.accent}`}
             >
               <span>🔄</span>
               重置

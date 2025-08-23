@@ -46,6 +46,12 @@ const PracticeExercises = ({ dialogue, onExerciseComplete }: PracticeExercisesPr
   const [startTime, setStartTime] = useState<number>(Date.now())
   const [usedWords, setUsedWords] = useState<string[]>([])
   const [sentenceBuilder, setSentenceBuilder] = useState<string[]>([])
+  const [draggedWord, setDraggedWord] = useState<string | null>(null)
+  const [draggedFromBuilder, setDraggedFromBuilder] = useState<boolean>(false)
+  const [dropZoneActive, setDropZoneActive] = useState<boolean>(false)
+  const [insertIndex, setInsertIndex] = useState<number>(-1)
+  const [touchStartPos, setTouchStartPos] = useState<{ x: number; y: number } | null>(null)
+  const [isDraggingTouch, setIsDraggingTouch] = useState<boolean>(false)
 
 
   // 生成練習題
@@ -333,6 +339,255 @@ const PracticeExercises = ({ dialogue, onExerciseComplete }: PracticeExercisesPr
     }
   }
 
+  // 拖拽處理函數
+  const handleDragStart = (e: React.DragEvent, word: string, fromBuilder: boolean = false) => {
+    setDraggedWord(word)
+    setDraggedFromBuilder(fromBuilder)
+    e.dataTransfer.effectAllowed = 'move'
+    e.dataTransfer.setData('text/plain', word)
+    
+    // 設置拖拽影像樣式
+    if (e.currentTarget instanceof HTMLElement) {
+      e.currentTarget.style.opacity = '0.5'
+    }
+  }
+
+  const handleDragEnd = (e: React.DragEvent) => {
+    setDraggedWord(null)
+    setDraggedFromBuilder(false)
+    setDropZoneActive(false)
+    
+    // 重置拖拽影像樣式
+    if (e.currentTarget instanceof HTMLElement) {
+      e.currentTarget.style.opacity = '1'
+    }
+  }
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+    setDropZoneActive(true)
+  }
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    // 只有當離開整個區域時才重置
+    if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+      setDropZoneActive(false)
+    }
+  }
+
+  const handleDropToBuilder = (e: React.DragEvent) => {
+    e.preventDefault()
+    setDropZoneActive(false)
+    setInsertIndex(-1)
+    
+    const word = e.dataTransfer.getData('text/plain')
+    if (!word || !draggedWord) return
+
+    const currentExercise = exercises[currentExerciseIndex]
+    if (currentExercise?.type === 'sentence-reconstruction') {
+      if (draggedFromBuilder) {
+        // 如果是從句子構建器內部拖拽，重新排列
+        const currentIndex = sentenceBuilder.indexOf(word)
+        const targetIndex = insertIndex >= 0 ? insertIndex : sentenceBuilder.length
+        
+        if (currentIndex !== targetIndex && currentIndex !== -1) {
+          const newBuilder = [...sentenceBuilder]
+          newBuilder.splice(currentIndex, 1)
+          newBuilder.splice(targetIndex > currentIndex ? targetIndex - 1 : targetIndex, 0, word)
+          setSentenceBuilder(newBuilder)
+          
+          const newSentence = newBuilder.join(' ')
+          setUserAnswers(prev => ({ ...prev, [currentExercise.id]: newSentence }))
+        }
+      } else {
+        // 從選項區域拖拽到構建器
+        if (insertIndex >= 0 && insertIndex < sentenceBuilder.length) {
+          // 插入到指定位置
+          const newBuilder = [...sentenceBuilder]
+          newBuilder.splice(insertIndex, 0, word)
+          setSentenceBuilder(newBuilder)
+          setUsedWords(prev => [...prev, word])
+          
+          const newSentence = newBuilder.join(' ')
+          setUserAnswers(prev => ({ ...prev, [currentExercise.id]: newSentence }))
+        } else {
+          // 添加到末尾
+          handleWordSelect(word)
+        }
+      }
+    }
+  }
+
+  const handleWordDropZone = (e: React.DragEvent, index: number) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setInsertIndex(index)
+  }
+
+  const handleDropToOptions = (e: React.DragEvent) => {
+    e.preventDefault()
+    setDropZoneActive(false)
+    
+    const word = e.dataTransfer.getData('text/plain')
+    if (!word || !draggedWord) return
+
+    const currentExercise = exercises[currentExerciseIndex]
+    if (currentExercise?.type === 'sentence-reconstruction' && draggedFromBuilder) {
+      // 從句子構建器拖拽回選項區域
+      handleWordRemove(word)
+    }
+  }
+
+  // 觸控拖拽處理函數
+  const handleTouchStart = (e: React.TouchEvent, word: string, fromBuilder: boolean = false) => {
+    const touch = e.touches[0]
+    setTouchStartPos({ x: touch.clientX, y: touch.clientY })
+    setDraggedWord(word)
+    setDraggedFromBuilder(fromBuilder)
+    setIsDraggingTouch(false)
+    setDropZoneActive(false)
+    setInsertIndex(-1)
+  }
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!touchStartPos || !draggedWord) return
+    
+    const touch = e.touches[0]
+    const deltaX = Math.abs(touch.clientX - touchStartPos.x)
+    const deltaY = Math.abs(touch.clientY - touchStartPos.y)
+    
+    // 檢測是否是拖拽手勢（移動距離超過閾值）
+    if (deltaX > 15 || deltaY > 15) {
+      setIsDraggingTouch(true)
+      setDropZoneActive(true)
+      
+      // 如果是在句子構建器內拖拽，計算最佳插入位置
+      if (draggedFromBuilder) {
+        const builderElement = document.querySelector('[data-drop-zone="builder"]')
+        if (builderElement) {
+          const rect = builderElement.getBoundingClientRect()
+          const relativeX = touch.clientX - rect.left
+          const relativeY = touch.clientY - rect.top
+          
+          // 檢查是否在構建器區域內
+          if (relativeX >= 0 && relativeX <= rect.width && relativeY >= 0 && relativeY <= rect.height) {
+            // 計算插入位置
+            const wordElements = builderElement.querySelectorAll('[data-word-element]')
+            let bestInsertIndex = sentenceBuilder.length
+            
+            for (let i = 0; i < wordElements.length; i++) {
+              const wordRect = wordElements[i].getBoundingClientRect()
+              const wordCenterX = wordRect.left + wordRect.width / 2
+              
+              if (touch.clientX < wordCenterX) {
+                bestInsertIndex = i
+                break
+              }
+            }
+            
+            setInsertIndex(bestInsertIndex)
+          } else {
+            // 拖拽到構建器外部，準備移除
+            setInsertIndex(-1)
+          }
+        }
+      }
+    }
+  }
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (!touchStartPos || !draggedWord) {
+      setTouchStartPos(null)
+      setDraggedWord(null)
+      setDraggedFromBuilder(false)
+      setIsDraggingTouch(false)
+      setDropZoneActive(false)
+      setInsertIndex(-1)
+      return
+    }
+
+    const touch = e.changedTouches[0]
+    const deltaX = Math.abs(touch.clientX - touchStartPos.x)
+    const deltaY = Math.abs(touch.clientY - touchStartPos.y)
+    
+    // 如果是拖拽手勢（移動距離超過閾值）
+    if (deltaX > 15 || deltaY > 15) {
+      const currentExercise = exercises[currentExerciseIndex]
+      if (currentExercise?.type === 'sentence-reconstruction') {
+        
+        if (draggedFromBuilder) {
+          // 從句子構建器內拖拽
+          const builderElement = document.querySelector('[data-drop-zone="builder"]')
+          if (builderElement) {
+            const rect = builderElement.getBoundingClientRect()
+            const relativeX = touch.clientX - rect.left
+            const relativeY = touch.clientY - rect.top
+            
+            // 檢查是否還在構建器區域內
+            if (relativeX >= 0 && relativeX <= rect.width && relativeY >= 0 && relativeY <= rect.height) {
+              // 在構建器內重新排序
+              const currentIndex = sentenceBuilder.indexOf(draggedWord)
+              let targetIndex = insertIndex >= 0 ? insertIndex : sentenceBuilder.length
+              
+              if (currentIndex !== -1 && targetIndex !== currentIndex) {
+                const newBuilder = [...sentenceBuilder]
+                newBuilder.splice(currentIndex, 1)
+                
+                // 調整目標索引
+                if (targetIndex > currentIndex) {
+                  targetIndex -= 1
+                }
+                
+                newBuilder.splice(targetIndex, 0, draggedWord)
+                setSentenceBuilder(newBuilder)
+                
+                const newSentence = newBuilder.join(' ')
+                setUserAnswers(prev => ({ ...prev, [currentExercise.id]: newSentence }))
+              }
+            } else {
+              // 拖拽到構建器外部，移除單字
+              handleWordRemove(draggedWord)
+            }
+          }
+        } else {
+          // 從選項區域拖拽到構建器
+          const builderElement = document.querySelector('[data-drop-zone="builder"]')
+          if (builderElement) {
+            const rect = builderElement.getBoundingClientRect()
+            const relativeX = touch.clientX - rect.left
+            const relativeY = touch.clientY - rect.top
+            
+            // 檢查是否拖拽到構建器區域
+            if (relativeX >= 0 && relativeX <= rect.width && relativeY >= 0 && relativeY <= rect.height) {
+              // 根據插入位置添加單字
+              if (insertIndex >= 0 && insertIndex < sentenceBuilder.length) {
+                const newBuilder = [...sentenceBuilder]
+                newBuilder.splice(insertIndex, 0, draggedWord)
+                setSentenceBuilder(newBuilder)
+                setUsedWords(prev => [...prev, draggedWord])
+                
+                const newSentence = newBuilder.join(' ')
+                setUserAnswers(prev => ({ ...prev, [currentExercise.id]: newSentence }))
+              } else {
+                // 添加到末尾
+                handleWordSelect(draggedWord)
+              }
+            }
+          }
+        }
+      }
+    }
+
+    // 重置狀態
+    setTouchStartPos(null)
+    setDraggedWord(null)
+    setDraggedFromBuilder(false)
+    setIsDraggingTouch(false)
+    setDropZoneActive(false)
+    setInsertIndex(-1)
+  }
+
   // 渲染練習題
   const renderExercise = (exercise: PracticeExercise) => {
     switch (exercise.type) {
@@ -347,7 +602,7 @@ const PracticeExercises = ({ dialogue, onExerciseComplete }: PracticeExercisesPr
                   onClick={() => setUserAnswers(prev => ({ ...prev, [exercise.id]: option }))}
                   className={`p-3 rounded-lg border-2 transition-all duration-200 transform hover:scale-105 ${
                     userAnswers[exercise.id] === option
-                      ? 'bg-blue-600 text-white border-blue-500 shadow-lg'
+                      ? `bg-gradient-to-r ${themeConfig.colors.gradient.blue} text-white border-transparent shadow-lg`
                       : `bg-gradient-to-r ${themeConfig.colors.background.tertiary} ${themeConfig.colors.text.primary} ${themeConfig.colors.border.primary} hover:bg-gradient-to-r ${themeConfig.colors.background.cardHover} hover:${themeConfig.colors.border.secondary}`
                   }`}
                 >
@@ -357,7 +612,7 @@ const PracticeExercises = ({ dialogue, onExerciseComplete }: PracticeExercisesPr
             </div>
             {userAnswers[exercise.id] && (
               <div className={`mt-4 p-3 bg-gradient-to-r ${themeConfig.colors.background.tertiary} border ${themeConfig.colors.border.accent} rounded-lg`}>
-                <div className="text-blue-300 text-sm">您的選擇：</div>
+                <div className={`${themeConfig.colors.text.accent} text-sm`}>您的選擇：</div>
                 <div className={`${themeConfig.colors.text.primary} font-medium`}>{exercise.question.replace('_____', userAnswers[exercise.id])}</div>
               </div>
             )}
@@ -371,7 +626,7 @@ const PracticeExercises = ({ dialogue, onExerciseComplete }: PracticeExercisesPr
             <div className={`flex items-center gap-4 bg-gradient-to-r ${themeConfig.colors.background.secondary} rounded-lg p-4`}>
               <button
                 onClick={() => isPlaying ? stopAudio() : playAudio(exercise.audioText || '')}
-                className="bg-blue-600 hover:bg-blue-700 text-white p-3 rounded-full transition-all duration-200 transform hover:scale-105 shadow-lg"
+                className={`bg-gradient-to-r ${themeConfig.colors.button.primary} hover:${themeConfig.colors.button.hover} text-white p-3 rounded-full transition-all duration-200 transform hover:scale-105 shadow-lg`}
               >
                 {isPlaying ? <Pause className="w-6 h-6" /> : <Play className="w-6 h-6" />}
               </button>
@@ -381,7 +636,7 @@ const PracticeExercises = ({ dialogue, onExerciseComplete }: PracticeExercisesPr
                 <select
                   value={audioSpeed}
                   onChange={(e) => setAudioSpeed(parseFloat(e.target.value))}
-                  className={`bg-gradient-to-r ${themeConfig.colors.background.tertiary} ${themeConfig.colors.text.primary} border ${themeConfig.colors.border.primary} rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500`}
+                  className={`bg-gradient-to-r ${themeConfig.colors.background.tertiary} ${themeConfig.colors.text.primary} border ${themeConfig.colors.border.primary} rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-${themeConfig.colors.border.accent}`}
                 >
                   <option value={0.5}>0.5x</option>
                   <option value={0.75}>0.75x</option>
@@ -396,7 +651,7 @@ const PracticeExercises = ({ dialogue, onExerciseComplete }: PracticeExercisesPr
               value={userAnswers[exercise.id] || ''}
               onChange={(e) => setUserAnswers(prev => ({ ...prev, [exercise.id]: e.target.value }))}
               placeholder="請輸入聽到的單字..."
-              className={`w-full bg-gradient-to-r ${themeConfig.colors.background.tertiary} border ${themeConfig.colors.border.primary} rounded-xl px-4 py-3 ${themeConfig.colors.text.primary} placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200`}
+              className={`w-full bg-gradient-to-r ${themeConfig.colors.background.tertiary} border ${themeConfig.colors.border.primary} rounded-xl px-4 py-3 ${themeConfig.colors.text.primary} placeholder-${themeConfig.colors.text.tertiary} focus:outline-none focus:ring-2 focus:ring-${themeConfig.colors.border.accent} focus:border-transparent transition-all duration-200`}
             />
           </div>
         )
@@ -412,7 +667,7 @@ const PracticeExercises = ({ dialogue, onExerciseComplete }: PracticeExercisesPr
                   onClick={() => setUserAnswers(prev => ({ ...prev, [exercise.id]: option }))}
                   className={`p-3 rounded-lg border-2 transition-all duration-200 transform hover:scale-105 ${
                     userAnswers[exercise.id] === option
-                      ? 'bg-green-600 text-white border-green-500 shadow-lg'
+                      ? `bg-gradient-to-r ${themeConfig.colors.gradient.emerald} text-white border-transparent shadow-lg`
                       : `bg-gradient-to-r ${themeConfig.colors.background.tertiary} ${themeConfig.colors.text.primary} ${themeConfig.colors.border.primary} hover:bg-gradient-to-r ${themeConfig.colors.background.cardHover} hover:${themeConfig.colors.border.secondary}`
                   }`}
                 >
@@ -429,43 +684,106 @@ const PracticeExercises = ({ dialogue, onExerciseComplete }: PracticeExercisesPr
             <div className={`text-lg ${themeConfig.colors.text.primary} font-medium mb-4`}>{exercise.question}</div>
             
             {/* 句子構建區域 */}
-            <div className={`bg-gradient-to-r ${themeConfig.colors.background.secondary} border-2 border-dashed ${themeConfig.colors.border.primary} rounded-xl p-4 min-h-[80px] flex items-center`}>
+            <div 
+              className={`bg-gradient-to-r ${themeConfig.colors.background.secondary} border-2 border-dashed ${
+                dropZoneActive ? themeConfig.colors.border.accent : themeConfig.colors.border.primary
+              } rounded-xl p-4 min-h-[80px] flex items-center transition-all duration-200 ${
+                dropZoneActive ? 'scale-102 shadow-lg' : ''
+              }`}
+              data-drop-zone="builder"
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDropToBuilder}
+            >
               {sentenceBuilder.length === 0 ? (
                 <div className="text-center w-full">
-                  <div className={`${themeConfig.colors.text.accent} text-sm mb-2`}>📱 觸控操作說明</div>
-                  <div className={`${themeConfig.colors.text.accent} text-xs`}>點擊下方單字添加到句子中</div>
+                  <div className={`${themeConfig.colors.text.accent} text-sm mb-2`}>📱 拖拽 & 觸控操作</div>
+                  <div className={`${themeConfig.colors.text.accent} text-xs`}>拖拽或點擊下方單字添加到句子中</div>
                 </div>
               ) : (
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-1 items-center">
                   {sentenceBuilder.map((word, index) => (
-                    <span
-                      key={index}
-                      onClick={() => handleWordRemove(word)}
-                      className="bg-blue-600 text-white px-3 py-1 rounded-lg cursor-pointer hover:bg-blue-700 transition-colors duration-200 flex items-center gap-1 active:scale-95"
-                      title="點擊移除"
-                    >
-                      {word}
-                      <span className="text-xs opacity-70">×</span>
-                    </span>
+                    <div key={index} className="flex items-center gap-1">
+                      {/* 插入點 */}
+                      <div
+                        className={`w-1 h-8 rounded-full transition-all duration-200 ${
+                          insertIndex === index ? `bg-gradient-to-b ${themeConfig.colors.gradient.emerald} shadow-lg scale-110` : 'bg-transparent hover:bg-gray-300/30'
+                        }`}
+                        onDragOver={(e) => handleWordDropZone(e, index)}
+                        onDrop={(e) => handleWordDropZone(e, index)}
+                      />
+                      
+                      {/* 單字 */}
+                      <span
+                        draggable
+                        data-word-element
+                        onClick={() => {
+                          if (!isDraggingTouch) {
+                            handleWordRemove(word)
+                          }
+                        }}
+                        onDragStart={(e) => handleDragStart(e, word, true)}
+                        onDragEnd={handleDragEnd}
+                        onTouchStart={(e) => handleTouchStart(e, word, true)}
+                        onTouchMove={handleTouchMove}
+                        onTouchEnd={handleTouchEnd}
+                        className={`bg-gradient-to-r ${themeConfig.colors.gradient.blue} text-white px-3 py-1 rounded-lg cursor-move hover:${themeConfig.colors.gradient.cyan} transition-all duration-200 flex items-center gap-1 active:scale-95 hover:scale-105 select-none ${
+                          isDraggingTouch && draggedWord === word ? 'opacity-50 scale-110' : ''
+                        }`}
+                        title="拖拽重新排列或點擊移除"
+                      >
+                        <span className="text-xs opacity-70">⋮⋮</span>
+                        {word}
+                        <span className="text-xs opacity-70">×</span>
+                      </span>
+                    </div>
                   ))}
+                  
+                  {/* 末尾插入點 */}
+                  <div
+                    className={`w-1 h-8 rounded-full transition-all duration-200 ${
+                      insertIndex === sentenceBuilder.length ? `bg-gradient-to-b ${themeConfig.colors.gradient.emerald} shadow-lg scale-110` : 'bg-transparent hover:bg-gray-300/30'
+                    }`}
+                    onDragOver={(e) => handleWordDropZone(e, sentenceBuilder.length)}
+                    onDrop={(e) => handleWordDropZone(e, sentenceBuilder.length)}
+                  />
                 </div>
               )}
             </div>
 
             {/* 單字選項區域 */}
-            <div className={`bg-gradient-to-r ${themeConfig.colors.background.tertiary} rounded-xl p-4`}>
+            <div 
+              className={`bg-gradient-to-r ${themeConfig.colors.background.tertiary} rounded-xl p-4 transition-all duration-200`}
+              data-drop-zone="options"
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDropToOptions}
+            >
               <div className={`${themeConfig.colors.text.primary} text-sm mb-2 flex items-center gap-2`}>
                 <span>📝 可用單字</span>
-                <span className={`${themeConfig.colors.text.accent} text-xs`}>(點擊添加)</span>
+                <span className={`${themeConfig.colors.text.accent} text-xs`}>(拖拽或點擊添加)</span>
               </div>
               <div className="flex flex-wrap gap-2">
                 {exercise.options?.filter(word => !usedWords.includes(word)).map((word, index) => (
                   <span
                     key={index}
-                    onClick={() => handleWordSelect(word)}
-                    className={`bg-gradient-to-r ${themeConfig.colors.background.secondary} ${themeConfig.colors.text.primary} px-3 py-2 rounded-lg cursor-pointer hover:bg-gradient-to-r ${themeConfig.colors.background.cardHover} transition-all duration-200 transform hover:scale-105 active:scale-95`}
-                    title="點擊添加"
+                    draggable
+                    onClick={() => {
+                      if (!isDraggingTouch) {
+                        handleWordSelect(word)
+                      }
+                    }}
+                    onDragStart={(e) => handleDragStart(e, word, false)}
+                    onDragEnd={handleDragEnd}
+                    onTouchStart={(e) => handleTouchStart(e, word, false)}
+                    onTouchMove={handleTouchMove}
+                    onTouchEnd={handleTouchEnd}
+                    className={`bg-gradient-to-r ${themeConfig.colors.background.secondary} ${themeConfig.colors.text.primary} px-3 py-2 rounded-lg cursor-move hover:bg-gradient-to-r ${themeConfig.colors.background.cardHover} transition-all duration-200 transform hover:scale-105 active:scale-95 select-none ${
+                      isDraggingTouch && draggedWord === word ? 'opacity-50 scale-110' : ''
+                    }`}
+                    title="拖拽到上方或點擊添加"
                   >
+                    <span className="text-xs opacity-50 mr-1">⋮⋮</span>
                     {word}
                   </span>
                 ))}
@@ -474,23 +792,23 @@ const PracticeExercises = ({ dialogue, onExerciseComplete }: PracticeExercisesPr
 
             {/* 操作按鈕 */}
             <div className="flex gap-2">
-                              <button
-                  onClick={() => {
-                    setSentenceBuilder([])
-                    setUsedWords([])
-                    setUserAnswers(prev => ({ ...prev, [exercise.id]: '' }))
-                  }}
-                  className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg text-sm transition-colors duration-200 active:scale-95 min-h-[44px] min-w-[44px] flex items-center justify-center"
-                >
-                  清空重組
-                </button>
-                              <button
-                  onClick={() => playAudio(exercise.answer)}
-                  className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm transition-colors duration-200 flex items-center gap-2 active:scale-95 min-h-[44px] min-w-[44px] flex items-center justify-center"
-                >
-                  <Volume2 className="w-4 h-4" />
-                  聽正確答案
-                </button>
+              <button
+                onClick={() => {
+                  setSentenceBuilder([])
+                  setUsedWords([])
+                  setUserAnswers(prev => ({ ...prev, [exercise.id]: '' }))
+                }}
+                className={`bg-gradient-to-r ${themeConfig.colors.gradient.slate} hover:${themeConfig.colors.gradient.gray} text-white px-4 py-2 rounded-lg text-sm transition-all duration-200 active:scale-95 min-h-[44px] min-w-[44px] flex items-center justify-center`}
+              >
+                清空重組
+              </button>
+              <button
+                onClick={() => playAudio(exercise.answer)}
+                className={`bg-gradient-to-r ${themeConfig.colors.gradient.emerald} hover:${themeConfig.colors.gradient.teal} text-white px-4 py-2 rounded-lg text-sm transition-all duration-200 flex items-center justify-center gap-2 active:scale-95 min-h-[44px] min-w-[44px]`}
+              >
+                <Volume2 className="w-4 h-4" />
+                聽正確答案
+              </button>
             </div>
           </div>
         )
@@ -516,20 +834,20 @@ const PracticeExercises = ({ dialogue, onExerciseComplete }: PracticeExercisesPr
         
         {/* 成績統計 */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 my-6">
-          <div className="bg-yellow-900/30 border border-yellow-500/30 rounded-xl p-4">
-            <Trophy className="w-8 h-8 text-yellow-400 mx-auto mb-2" />
-            <div className="text-2xl font-bold text-yellow-400">{totalPoints}</div>
-            <div className="text-yellow-300 text-sm">總分</div>
+          <div className={`bg-gradient-to-r ${themeConfig.colors.background.tertiary} border ${themeConfig.colors.border.accent} rounded-xl p-4`}>
+            <Trophy className={`w-8 h-8 ${themeConfig.colors.text.accent} mx-auto mb-2`} />
+            <div className={`text-2xl font-bold ${themeConfig.colors.text.primary}`}>{totalPoints}</div>
+            <div className={`${themeConfig.colors.text.tertiary} text-sm`}>總分</div>
           </div>
-          <div className="bg-green-900/30 border border-green-500/30 rounded-xl p-4">
-            <CheckCircle className="w-8 h-8 text-green-400 mx-auto mb-2" />
-            <div className="text-2xl font-bold text-green-400">{accuracy}%</div>
-            <div className="text-green-300 text-sm">正確率</div>
+          <div className={`bg-gradient-to-r ${themeConfig.colors.background.tertiary} border ${themeConfig.colors.border.accent} rounded-xl p-4`}>
+            <CheckCircle className={`w-8 h-8 ${themeConfig.colors.text.accent} mx-auto mb-2`} />
+            <div className={`text-2xl font-bold ${themeConfig.colors.text.primary}`}>{accuracy}%</div>
+            <div className={`${themeConfig.colors.text.tertiary} text-sm`}>正確率</div>
           </div>
-          <div className="bg-blue-900/30 border border-blue-500/30 rounded-xl p-4">
-            <Star className="w-8 h-8 text-blue-400 mx-auto mb-2" />
-            <div className="text-2xl font-bold text-blue-400">{avgTime}s</div>
-            <div className="text-blue-300 text-sm">平均用時</div>
+          <div className={`bg-gradient-to-r ${themeConfig.colors.background.tertiary} border ${themeConfig.colors.border.accent} rounded-xl p-4`}>
+            <Star className={`w-8 h-8 ${themeConfig.colors.text.accent} mx-auto mb-2`} />
+            <div className={`text-2xl font-bold ${themeConfig.colors.text.primary}`}>{avgTime}s</div>
+            <div className={`${themeConfig.colors.text.tertiary} text-sm`}>平均用時</div>
           </div>
         </div>
 
@@ -543,9 +861,9 @@ const PracticeExercises = ({ dialogue, onExerciseComplete }: PracticeExercisesPr
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
                     {result.isCorrect ? (
-                      <CheckCircle className="w-4 h-4 text-green-400" />
+                      <CheckCircle className={`w-4 h-4 ${themeConfig.colors.text.accent}`} />
                     ) : (
-                      <XCircle className="w-4 h-4 text-red-400" />
+                      <XCircle className={`w-4 h-4 ${themeConfig.colors.text.accent}`} />
                     )}
                     <span className={`text-sm ${themeConfig.colors.text.primary} font-medium`}>第 {index + 1} 題</span>
                     <span className={`text-xs ${themeConfig.colors.text.accent}`}>({exercise?.type === 'fill-blank' ? '填空題' : exercise?.type === 'listening' ? '聽力練習' : exercise?.type === 'word-matching' ? '單字配對' : '句子重組'})</span>
@@ -567,7 +885,7 @@ const PracticeExercises = ({ dialogue, onExerciseComplete }: PracticeExercisesPr
                     {/* 用戶答案 */}
                     <div className={themeConfig.colors.text.tertiary}>
                       <span className={themeConfig.colors.text.accent}>您的答案：</span>
-                      <span className={`${result.isCorrect ? 'text-green-400' : 'text-red-400'} font-medium`}>
+                      <span className={`${result.isCorrect ? themeConfig.colors.text.accent : themeConfig.colors.text.accent} font-medium`}>
                         {result.userAnswer || '(未作答)'}
                       </span>
                     </div>
@@ -575,7 +893,7 @@ const PracticeExercises = ({ dialogue, onExerciseComplete }: PracticeExercisesPr
                     {/* 正確答案 */}
                     <div className={themeConfig.colors.text.tertiary}>
                       <span className={themeConfig.colors.text.accent}>正確答案：</span>
-                      <span className="text-green-400 font-medium">{result.correctAnswer}</span>
+                      <span className={`${themeConfig.colors.text.accent} font-medium`}>{result.correctAnswer}</span>
                     </div>
                     
                     {/* 題目詳情 */}
@@ -601,7 +919,7 @@ const PracticeExercises = ({ dialogue, onExerciseComplete }: PracticeExercisesPr
 
         <button
           onClick={generateExercises}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-xl font-medium transition-all duration-200 transform hover:scale-105 shadow-lg active:scale-95 min-h-[44px] min-w-[44px] flex items-center justify-center"
+          className={`bg-gradient-to-r ${themeConfig.colors.button.primary} hover:${themeConfig.colors.button.hover} text-white px-8 py-3 rounded-xl font-medium transition-all duration-200 transform hover:scale-105 shadow-lg active:scale-95 min-h-[44px] min-w-[44px] flex items-center justify-center`}
         >
           <RotateCcw className="w-5 h-5 inline mr-2" />
           重新開始
@@ -620,7 +938,7 @@ const PracticeExercises = ({ dialogue, onExerciseComplete }: PracticeExercisesPr
         <button
           onClick={generateExercises}
           disabled={dialogue.length === 0}
-          className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg transition-colors duration-200 flex items-center gap-2 active:scale-95 min-h-[44px] min-w-[44px] flex items-center justify-center"
+          className={`bg-gradient-to-r ${themeConfig.colors.button.primary} hover:${themeConfig.colors.button.hover} disabled:bg-gradient-to-r ${themeConfig.colors.gradient.slate} disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg transition-all duration-200 flex items-center justify-center gap-2 active:scale-95 min-h-[44px] min-w-[44px]`}
         >
           <RotateCcw className="w-4 h-4" />
           生成練習題
@@ -648,13 +966,13 @@ const PracticeExercises = ({ dialogue, onExerciseComplete }: PracticeExercisesPr
               第 {currentExerciseIndex + 1} 題 / 共 {exercises.length} 題
             </div>
             <div className="flex items-center gap-4">
-              <div className="text-yellow-400 font-medium flex items-center gap-1">
+              <div className={`${themeConfig.colors.text.accent} font-medium flex items-center gap-1`}>
                 <Trophy className="w-4 h-4" />
                 {score} 分
               </div>
-              <div className="w-32 bg-gray-700 rounded-full h-2">
+              <div className={`w-32 ${themeConfig.colors.background.tertiary} rounded-full h-2`}>
                 <div 
-                  className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                  className={`bg-gradient-to-r ${themeConfig.colors.gradient.blue} h-2 rounded-full transition-all duration-300`}
                   style={{ width: `${((currentExerciseIndex + 1) / exercises.length) * 100}%` }}
                 ></div>
               </div>
@@ -672,7 +990,7 @@ const PracticeExercises = ({ dialogue, onExerciseComplete }: PracticeExercisesPr
                   '句子重組'
                 }
               </div>
-              <div className="text-sm text-yellow-400">
+              <div className={`text-sm ${themeConfig.colors.text.accent}`}>
                 {exercises[currentExerciseIndex]?.points} 分
               </div>
             </div>
@@ -689,7 +1007,7 @@ const PracticeExercises = ({ dialogue, onExerciseComplete }: PracticeExercisesPr
                 }
               }}
               disabled={currentExerciseIndex === 0}
-              className="bg-gray-600 hover:bg-gray-700 disabled:bg-gray-800 disabled:text-gray-500 text-white px-6 py-2 rounded-lg transition-colors duration-200 disabled:cursor-not-allowed active:scale-95 min-h-[44px] min-w-[44px] flex items-center justify-center"
+              className={`bg-gradient-to-r ${themeConfig.colors.gradient.slate} hover:${themeConfig.colors.gradient.gray} disabled:bg-gradient-to-r ${themeConfig.colors.background.tertiary} disabled:${themeConfig.colors.text.tertiary} text-white px-6 py-2 rounded-lg transition-all duration-200 disabled:cursor-not-allowed active:scale-95 min-h-[44px] min-w-[44px] flex items-center justify-center`}
             >
               上一題
             </button>
@@ -697,7 +1015,7 @@ const PracticeExercises = ({ dialogue, onExerciseComplete }: PracticeExercisesPr
             <button
               onClick={submitAnswer}
               disabled={!userAnswers[exercises[currentExerciseIndex]?.id]}
-              className="bg-green-600 hover:bg-green-700 disabled:bg-gray-600 text-white px-8 py-2 rounded-lg transition-all duration-200 disabled:cursor-not-allowed transform hover:scale-105 shadow-lg active:scale-95 min-h-[44px] min-w-[44px] flex items-center justify-center"
+              className={`bg-gradient-to-r ${themeConfig.colors.gradient.emerald} hover:${themeConfig.colors.gradient.teal} disabled:bg-gradient-to-r ${themeConfig.colors.gradient.slate} text-white px-8 py-2 rounded-lg transition-all duration-200 disabled:cursor-not-allowed transform hover:scale-105 shadow-lg active:scale-95 min-h-[44px] min-w-[44px] flex items-center justify-center`}
             >
               {currentExerciseIndex === exercises.length - 1 ? '完成練習' : '下一題'}
             </button>

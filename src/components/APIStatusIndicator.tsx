@@ -1,3 +1,5 @@
+import { useTheme } from '../contexts/ThemeContext'
+
 interface APIStatusIndicatorProps {
   currentModel: string
   isGenerating: boolean
@@ -11,14 +13,16 @@ const APIStatusIndicator = ({
   isApiGenerated, 
   hasDialogue 
 }: APIStatusIndicatorProps) => {
+  const { themeConfig } = useTheme()
+
   const getStatusColor = () => {
-    if (isGenerating) return 'bg-blue-600/20 text-blue-400 border-blue-400/30'
+    if (isGenerating) return `bg-gradient-to-r ${themeConfig.colors.gradient.blue}/20 ${themeConfig.colors.text.accent} border ${themeConfig.colors.border.accent}`
     if (hasDialogue) {
       return isApiGenerated 
-        ? 'bg-green-600/20 text-green-400 border-green-400/30' 
-        : 'bg-yellow-600/20 text-yellow-400 border-yellow-400/30'
+        ? `bg-gradient-to-r ${themeConfig.colors.gradient.emerald}/20 ${themeConfig.colors.text.accent} border ${themeConfig.colors.border.accent}` 
+        : `bg-gradient-to-r ${themeConfig.colors.gradient.purple}/20 ${themeConfig.colors.text.accent} border ${themeConfig.colors.border.accent}`
     }
-    return 'bg-gray-600/20 text-gray-400 border-gray-400/30'
+    return `bg-gradient-to-r ${themeConfig.colors.gradient.slate}/20 ${themeConfig.colors.text.accent} border ${themeConfig.colors.border.accent}`
   }
 
   const getStatusText = () => {
@@ -43,7 +47,7 @@ const APIStatusIndicator = ({
       </div>
       
       {hasDialogue && (
-        <div className="px-3 py-1.5 rounded-full border bg-white/20 text-white border-white/30">
+        <div className={`px-3 py-1.5 rounded-full border bg-gradient-to-r ${themeConfig.colors.background.tertiary} ${themeConfig.colors.text.primary} border ${themeConfig.colors.border.primary}`}>
           模型: {getModelDisplayName(currentModel)}
         </div>
       )}

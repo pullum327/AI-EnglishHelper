@@ -1,5 +1,6 @@
 // 通知組件 - 顯示 API 狀態和用戶提示
 import { useEffect } from 'react'
+import { useTheme } from '../contexts/ThemeContext'
 
 interface NotificationProps {
   message: string
@@ -8,6 +9,8 @@ interface NotificationProps {
 }
 
 function Notification({ message, type, onClose }: NotificationProps) {
+  const { themeConfig } = useTheme()
+
   useEffect(() => {
     const timer = setTimeout(() => {
       onClose()
@@ -19,13 +22,13 @@ function Notification({ message, type, onClose }: NotificationProps) {
   const getTypeStyles = () => {
     switch (type) {
       case 'success':
-        return 'bg-green-600 border-green-500 text-green-50'
+        return `bg-gradient-to-r ${themeConfig.colors.gradient.emerald} border ${themeConfig.colors.border.accent} text-white`
       case 'error':
-        return 'bg-red-600 border-red-500 text-red-50'
+        return `bg-gradient-to-r ${themeConfig.colors.gradient.slate} border ${themeConfig.colors.border.accent} text-white`
       case 'info':
-        return 'bg-blue-600 border-blue-500 text-blue-50'
+        return `bg-gradient-to-r ${themeConfig.colors.gradient.blue} border ${themeConfig.colors.border.accent} text-white`
       default:
-        return 'bg-gray-600 border-gray-500 text-gray-50'
+        return `bg-gradient-to-r ${themeConfig.colors.gradient.gray} border ${themeConfig.colors.border.accent} text-white`
     }
   }
 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Mail, Send, RotateCcw, Download, Copy, CheckCircle, Languages } from 'lucide-react'
+import { Mail, Send, RotateCcw, Download, Copy, CheckCircle } from 'lucide-react'
 import { useTheme } from '../contexts/ThemeContext'
 import { MistralService } from '../services/mistralService'
 
@@ -273,9 +273,9 @@ ${englishText}`
       <div className="text-center space-y-4">
         <div className="relative mb-4">
           <div className="text-5xl mb-2">✉️</div>
-          <div className="absolute inset-0 bg-gradient-to-r from-blue-400/20 to-purple-400/20 rounded-full blur-3xl"></div>
+          <div className={`absolute inset-0 bg-gradient-to-r ${themeConfig.colors.gradient.blue}/20 ${themeConfig.colors.gradient.purple}/20 rounded-full blur-3xl`}></div>
         </div>
-        <h2 className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+        <h2 className={`text-2xl font-bold bg-gradient-to-r ${themeConfig.colors.gradient.blue} ${themeConfig.colors.gradient.purple} bg-clip-text text-transparent`}>
           AI 英文回信助手
         </h2>
         <p className={`${themeConfig.colors.text.tertiary} text-lg`}>
@@ -285,20 +285,20 @@ ${englishText}`
         {/* API狀態指示器 */}
         <div className="flex items-center justify-center gap-2">
           {apiStatus === 'checking' && (
-            <div className="flex items-center gap-2 text-yellow-400">
-              <div className="w-3 h-3 border-2 border-yellow-400 border-t-transparent rounded-full animate-spin"></div>
+            <div className={`flex items-center gap-2 ${themeConfig.colors.text.accent}`}>
+              <div className={`w-3 h-3 border-2 ${themeConfig.colors.border.accent} border-t-transparent rounded-full animate-spin`}></div>
               檢查API狀態中...
             </div>
           )}
           {apiStatus === 'available' && (
-            <div className="flex items-center gap-2 text-green-400">
-              <div className="w-3 h-3 bg-green-400 rounded-full"></div>
+            <div className={`flex items-center gap-2 ${themeConfig.colors.text.accent}`}>
+              <div className={`w-3 h-3 ${themeConfig.colors.text.accent} rounded-full`}></div>
               AI服務正常
             </div>
           )}
           {apiStatus === 'unavailable' && (
-            <div className="flex items-center gap-2 text-orange-400">
-              <div className="w-3 h-3 bg-orange-400 rounded-full"></div>
+            <div className={`flex items-center gap-2 ${themeConfig.colors.text.accent}`}>
+              <div className={`w-3 h-3 ${themeConfig.colors.text.accent} rounded-full`}></div>
               使用備用方案（離線模式）
             </div>
           )}
@@ -306,8 +306,8 @@ ${englishText}`
       </div>
 
       {/* 信件輸入區域 */}
-      <div className={`bg-gradient-to-br ${themeConfig.colors.background.card} border border-blue-500/30 rounded-3xl p-6 backdrop-blur-xl shadow-2xl shadow-blue-500/10`}>
-        <h3 className="text-xl font-bold text-blue-200 mb-4 flex items-center gap-2">
+      <div className={`bg-gradient-to-br ${themeConfig.colors.background.card} border ${themeConfig.colors.border.accent} rounded-3xl p-6 backdrop-blur-xl shadow-2xl`}>
+        <h3 className={`text-xl font-bold ${themeConfig.colors.text.primary} mb-4 flex items-center gap-2`}>
           <Mail className="w-5 h-5" />
           輸入要回覆的英文信件
         </h3>
@@ -316,7 +316,7 @@ ${englishText}`
           value={inputLetter}
           onChange={(e) => setInputLetter(e.target.value)}
           placeholder="請貼上或輸入您收到的英文信件內容..."
-          className="w-full bg-slate-800/60 border border-slate-600/50 rounded-xl px-4 py-3 text-white placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-400/70 transition-all duration-200 resize-none backdrop-blur-sm shadow-lg"
+          className={`w-full bg-gradient-to-r ${themeConfig.colors.background.tertiary} border ${themeConfig.colors.border.primary} rounded-xl px-4 py-3 ${themeConfig.colors.text.primary} placeholder-${themeConfig.colors.text.tertiary} focus:outline-none focus:ring-2 focus:ring-${themeConfig.colors.border.accent} focus:border-transparent transition-all duration-200 resize-none backdrop-blur-sm shadow-lg`}
           rows={8}
         />
         
@@ -324,7 +324,7 @@ ${englishText}`
           <button
             onClick={generateReply}
             disabled={!inputLetter.trim() || isGenerating}
-            className="flex-1 bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 disabled:from-gray-600 disabled:to-gray-700 text-white py-3 rounded-xl font-medium transition-all duration-200 flex items-center justify-center gap-2 shadow-lg shadow-blue-500/20 hover:shadow-blue-500/30"
+            className={`flex-1 bg-gradient-to-r ${themeConfig.colors.button.primary} hover:${themeConfig.colors.button.hover} disabled:bg-gradient-to-r ${themeConfig.colors.gradient.slate} text-white py-3 rounded-xl font-medium transition-all duration-200 flex items-center justify-center gap-2 shadow-lg`}
           >
             {isGenerating ? (
               <>
@@ -341,7 +341,7 @@ ${englishText}`
           
           <button
             onClick={resetAll}
-            className="px-6 py-3 bg-slate-600 hover:bg-slate-700 text-white rounded-xl font-medium transition-all duration-200 flex items-center gap-2"
+            className={`px-6 py-3 bg-gradient-to-r ${themeConfig.colors.gradient.slate} hover:${themeConfig.colors.gradient.gray} text-white rounded-xl font-medium transition-all duration-200 flex items-center gap-2`}
           >
             <RotateCcw className="w-4 h-4" />
             重置
@@ -353,19 +353,19 @@ ${englishText}`
       {replyResult && (
         <div className="space-y-6">
           {/* 英文回覆 */}
-          <div className={`bg-gradient-to-br ${themeConfig.colors.background.card} border border-green-500/30 rounded-3xl p-6 backdrop-blur-xl shadow-2xl shadow-green-500/10`}>
-            <h3 className="text-xl font-bold text-green-200 mb-4 flex items-center gap-2">
+          <div className={`bg-gradient-to-br ${themeConfig.colors.background.card} border ${themeConfig.colors.border.accent} rounded-3xl p-6 backdrop-blur-xl shadow-2xl`}>
+            <h3 className={`text-xl font-bold ${themeConfig.colors.text.primary} mb-4 flex items-center gap-2`}>
               🇺🇸 英文回覆
             </h3>
             
-            <div className="bg-slate-800/50 border border-slate-600/50 rounded-xl p-4 mb-4">
-              <pre className="text-sm text-slate-200 whitespace-pre-wrap font-sans leading-relaxed">{replyResult.englishReply}</pre>
+            <div className={`bg-gradient-to-r ${themeConfig.colors.background.tertiary} border ${themeConfig.colors.border.primary} rounded-xl p-4 mb-4`}>
+              <pre className={`text-sm ${themeConfig.colors.text.primary} whitespace-pre-wrap font-sans leading-relaxed`}>{replyResult.englishReply}</pre>
             </div>
             
             <div className="flex gap-3">
               <button
                 onClick={() => copyToClipboard(replyResult.englishReply)}
-                className="flex-1 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white py-3 rounded-xl font-medium transition-all duration-200 flex items-center justify-center gap-2"
+                className={`flex-1 bg-gradient-to-r ${themeConfig.colors.gradient.emerald} hover:${themeConfig.colors.gradient.teal} text-white py-3 rounded-xl font-medium transition-all duration-200 flex items-center justify-center gap-2`}
               >
                 {copied ? (
                   <>
@@ -382,7 +382,7 @@ ${englishText}`
               
               <button
                 onClick={() => downloadAsText(replyResult.englishReply, 'English-Reply.txt')}
-                className="px-6 py-3 bg-slate-600 hover:bg-slate-700 text-white rounded-xl font-medium transition-all duration-200 flex items-center gap-2"
+                className={`px-6 py-3 bg-gradient-to-r ${themeConfig.colors.gradient.slate} hover:${themeConfig.colors.gradient.gray} text-white rounded-xl font-medium transition-all duration-200 flex items-center gap-2`}
               >
                 <Download className="w-4 h-4" />
                 下載
@@ -390,21 +390,20 @@ ${englishText}`
             </div>
           </div>
 
-          {/* 中文翻譯 */}
-          <div className={`bg-gradient-to-br ${themeConfig.colors.background.card} border border-orange-500/30 rounded-3xl p-6 backdrop-blur-xl shadow-2xl shadow-orange-500/10`}>
-            <h3 className="text-xl font-bold text-orange-200 mb-4 flex items-center gap-2">
-              <Languages className="w-5 h-5" />
-              🇹🇼 中文翻譯
+          {/* 中文回覆 */}
+          <div className={`bg-gradient-to-br ${themeConfig.colors.background.card} border ${themeConfig.colors.border.accent} rounded-3xl p-6 backdrop-blur-xl shadow-2xl`}>
+            <h3 className={`text-xl font-bold ${themeConfig.colors.text.primary} mb-4 flex items-center gap-2`}>
+              🇨🇳 中文回覆
             </h3>
             
-            <div className="bg-slate-800/50 border border-slate-600/50 rounded-xl p-4 mb-4">
-              <pre className="text-sm text-slate-200 whitespace-pre-wrap font-sans leading-relaxed">{replyResult.chineseReply}</pre>
+            <div className={`bg-gradient-to-r ${themeConfig.colors.background.tertiary} border ${themeConfig.colors.border.primary} rounded-xl p-4 mb-4`}>
+              <pre className={`text-sm ${themeConfig.colors.text.primary} whitespace-pre-wrap font-sans leading-relaxed`}>{replyResult.chineseReply}</pre>
             </div>
             
             <div className="flex gap-3">
               <button
                 onClick={() => copyToClipboard(replyResult.chineseReply)}
-                className="flex-1 bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 text-white py-3 rounded-xl font-medium transition-all duration-200 flex items-center justify-center gap-2"
+                className={`flex-1 bg-gradient-to-r ${themeConfig.colors.gradient.emerald} hover:${themeConfig.colors.gradient.teal} text-white py-3 rounded-xl font-medium transition-all duration-200 flex items-center justify-center gap-2`}
               >
                 {copied ? (
                   <>
@@ -414,22 +413,12 @@ ${englishText}`
                 ) : (
                   <>
                     <Copy className="w-5 h-5" />
-                    複製中文翻譯
+                    複製中文回覆
                   </>
                 )}
               </button>
-              
-              <button
-                onClick={() => downloadAsText(replyResult.chineseReply, 'Chinese-Translation.txt')}
-                className="px-6 py-3 bg-slate-600 hover:bg-slate-700 text-white rounded-xl font-medium transition-all duration-200 flex items-center gap-2"
-              >
-                <Download className="w-4 h-4" />
-                下載
-              </button>
             </div>
           </div>
-
-
         </div>
       )}
     </div>
