@@ -9,6 +9,7 @@ interface SidebarProps {
   menuItems: MenuItem[]
   currentPage: PageType
   onNavigate: (page: PageType) => void
+  onPreload?: (page: PageType) => void
 }
 
 const Sidebar: React.FC<SidebarProps> = ({
@@ -16,7 +17,8 @@ const Sidebar: React.FC<SidebarProps> = ({
   onClose,
   menuItems,
   currentPage,
-  onNavigate
+  onNavigate,
+  onPreload
 }) => {
   const { themeConfig } = useTheme()
 
@@ -50,6 +52,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                 onNavigate(item.id)
                 onClose()
               }}
+              onMouseEnter={() => onPreload?.(item.id)}
               className={`w-full flex items-center gap-4 p-4 rounded-xl transition-all duration-200 text-left ${
                 currentPage === item.id
                   ? `bg-gradient-to-r ${themeConfig.colors.background.tertiary} ${themeConfig.colors.text.accent} ${themeConfig.colors.border.accent} shadow-lg`

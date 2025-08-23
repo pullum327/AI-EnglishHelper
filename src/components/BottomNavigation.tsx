@@ -6,12 +6,14 @@ interface BottomNavigationProps {
   menuItems: MenuItem[]
   currentPage: PageType
   onNavigate: (page: PageType) => void
+  onPreload?: (page: PageType) => void
 }
 
 const BottomNavigation: React.FC<BottomNavigationProps> = ({
   menuItems,
   currentPage,
-  onNavigate
+  onNavigate,
+  onPreload
 }) => {
   const { themeConfig } = useTheme()
 
@@ -22,6 +24,7 @@ const BottomNavigation: React.FC<BottomNavigationProps> = ({
           <button
             key={item.id}
             onClick={() => onNavigate(item.id)}
+            onMouseEnter={() => onPreload?.(item.id)}
             className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-all duration-200 ${
               currentPage === item.id
                 ? `${themeConfig.colors.text.accent} bg-gradient-to-r ${themeConfig.colors.background.tertiary} ${themeConfig.colors.border.accent} shadow-lg`

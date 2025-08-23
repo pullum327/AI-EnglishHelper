@@ -1,16 +1,12 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, lazy, Suspense } from 'react'
 import { Home, MessageSquare, BookOpen, Settings } from 'lucide-react'
 import DifficultySelector from './components/DifficultySelector'
 import ModelSelector from './components/ModelSelector'
 import DialogueDisplay from './components/DialogueDisplay'
-import PracticeExercises from './components/PracticeExercises'
-import WordCollection from './components/WordCollection'
-import SentenceCollection from './components/SentenceCollection'
 import ThemeToggle from './components/ThemeToggle'
 import TTSController from './components/TTSController'
 import SwipeNavigationIndicator from './components/SwipeNavigationIndicator'
 import SwipeHint from './components/SwipeHint'
-import HomePage from './components/HomePage'
 import Header from './components/Header'
 import Sidebar from './components/Sidebar'
 import BottomNavigation from './components/BottomNavigation'
@@ -23,6 +19,20 @@ import { ttsService } from './services/ttsService'
 import { useSwipeNavigation } from './hooks/useSwipeNavigation'
 import { useNotifications } from './hooks/useNotifications'
 import type { PageType, MenuItem, Word, Sentence, DialogueMessage } from './types'
+
+// 懶加載頁面組件
+const HomePage = lazy(() => import('./components/HomePage'))
+const PracticeExercises = lazy(() => import('./components/PracticeExercises'))
+const WordCollection = lazy(() => import('./components/WordCollection'))
+const SentenceCollection = lazy(() => import('./components/SentenceCollection'))
+
+// 加載中組件
+const LoadingSpinner = () => (
+  <div className="flex items-center justify-center min-h-[400px]">
+    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+    <span className="ml-3 text-lg text-gray-600 dark:text-gray-400">載入中...</span>
+  </div>
+)
 
 const menuItems: MenuItem[] = [
   {
@@ -98,6 +108,26 @@ function App() {
       preventDefault: false
     }
   })
+
+  // 預加載策略：當用戶懸停在導航項目上時預加載相關組件
+  const preloadComponent = (page: PageType) => {
+    switch (page) {
+      case 'home':
+        import('./components/HomePage')
+        break
+      case 'practice':
+        import('./components/PracticeExercises')
+        break
+      case 'words':
+        import('./components/WordCollection')
+        break
+      case 'sentences':
+        import('./components/SentenceCollection')
+        break
+      default:
+        break
+    }
+  }
   
   // 對話相關狀態
   const [dialogue, setDialogue] = useState<DialogueMessage[]>([])
@@ -320,25 +350,27 @@ function App() {
 
   // 渲染首頁
   const renderHomePage = () => (
-    <HomePage
-      selectedDifficulty={selectedDifficulty}
-      selectedModel={selectedModel}
-      customInput={customInput}
-      isGeneratingDialogue={isGeneratingDialogue}
-      cooldownSeconds={cooldownSeconds}
-      inputMode={inputMode}
-      translationResult={translationResult}
-      isTranslating={isTranslating}
-      dialogue={dialogue}
-      onDifficultyClick={handleDifficultyClick}
-      onGenerateDialogue={handleGenerateDialogue}
-      onCustomInputChange={setCustomInput}
-      onInputModeChange={setInputMode}
-      onCustomDialogue={handleCustomDialogue}
-      onTranslate={handleTranslate}
-      onClearTranslation={handleClearTranslation}
-      onNavigate={setCurrentPage}
-    />
+    <Suspense fallback={<LoadingSpinner />}>
+      <HomePage
+        selectedDifficulty={selectedDifficulty}
+        selectedModel={selectedModel}
+        customInput={customInput}
+        isGeneratingDialogue={isGeneratingDialogue}
+        cooldownSeconds={cooldownSeconds}
+        inputMode={inputMode}
+        translationResult={translationResult}
+        isTranslating={isTranslating}
+        dialogue={dialogue}
+        onDifficultyClick={handleDifficultyClick}
+        onGenerateDialogue={handleGenerateDialogue}
+        onCustomInputChange={setCustomInput}
+        onInputModeChange={setInputMode}
+        onCustomDialogue={handleCustomDialogue}
+        onTranslate={handleTranslate}
+        onClearTranslation={handleClearTranslation}
+        onNavigate={setCurrentPage}
+      />
+    </Suspense>
   )
 
   // 渲染對話頁面
@@ -355,18 +387,18 @@ function App() {
 
   // 渲染單字本頁面
   const renderWordsPage = () => (
-    <div className="space-y-4 p-4">
+    <Suspense fallback={<LoadingSpinner />}>
       <WordCollection
         words={words}
         onSpeakWord={speakWord}
         onDeleteWord={deleteWord}
       />
-    </div>
+    </Suspense>
   )
 
   // 渲染句子收藏頁面
   const renderSentencesPage = () => (
-    <div className="space-y-4 p-4">
+    <Suspense fallback={<LoadingSpinner />}>
       <SentenceCollection
         sentences={sentences}
         selectedSentence={selectedSentence}
@@ -377,17 +409,17 @@ function App() {
         onCollectWord={collectWord}
         onWordTranslate={translateWord}
       />
-    </div>
+    </Suspense>
   )
 
   // 渲染練習頁面
   const renderPracticePage = () => (
-    <div className="space-y-4 p-4">
+    <Suspense fallback={<LoadingSpinner />}>
       <PracticeExercises
         dialogue={dialogue}
         onExerciseComplete={handleExerciseComplete}
       />
-    </div>
+    </Suspense>
   )
 
   // 渲染設定頁面
@@ -499,6 +531,7 @@ function App() {
         menuItems={menuItems}
         currentPage={currentPage}
         onNavigate={setCurrentPage}
+        onPreload={preloadComponent}
       />
 
       {/* 主要內容區域 */}
@@ -520,6 +553,7 @@ function App() {
         menuItems={menuItems}
         currentPage={currentPage}
         onNavigate={setCurrentPage}
+        onPreload={preloadComponent}
       />
     </div>
   )
