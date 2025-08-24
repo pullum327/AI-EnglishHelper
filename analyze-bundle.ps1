@@ -71,3 +71,5 @@ if (Test-Path "dist") {
 } else {
     Write-Host "❌ dist 目錄不存在，請先運行 npm run build" -ForegroundColor Red
 }
+
+
