@@ -18,6 +18,7 @@ import { useTheme } from './contexts/ThemeContext'
 import { ttsService } from './services/ttsService'
 import { useSwipeNavigation } from './hooks/useSwipeNavigation'
 import { useNotifications } from './hooks/useNotifications'
+import DatabaseService from './services/databaseService'
 import type { PageType, MenuItem, Word, Sentence, DialogueMessage } from './types'
 
 // 懶加載頁面組件
@@ -253,42 +254,94 @@ function App() {
   // 收藏單字
   const collectWord = async (word: string) => {
     const cleanWord = word.toLowerCase().replace(/[^\w]/g, '')
-    if (cleanWord && !words.find(w => w.word.toLowerCase() === cleanWord)) {
+    if (cleanWord) {
       try {
-      const translation = await mistralService.translateWord(cleanWord, dialogue)
-      const newWord: Word = {
-        id: Date.now().toString(),
-        word: cleanWord,
-        translation,
-        addedAt: new Date()
-      }
-      setWords(prev => [newWord, ...prev])
+        // 檢查單字是否已經存在
+        const existingWords = await DatabaseService.getWords()
+        if (existingWords.success && existingWords.data) {
+          const wordExists = existingWords.data.find(w => w.word.toLowerCase() === cleanWord)
+          if (wordExists) {
+            showNotification(`ℹ️ "${cleanWord}" 已在單字本中`, 'info')
+            return
+          }
+        }
+
+        // 獲取翻譯
+        const translation = await mistralService.translateWord(cleanWord, dialogue)
         
-        // 顯示收藏成功通知
-        showNotification(`✅ "${cleanWord}" 已收藏到單字本`, 'success')
+        // 使用 DatabaseService 創建單字
+        const result = await DatabaseService.createWord({
+          word: cleanWord,
+          translation,
+          difficulty: 'BEGINNER' // 默認設為初級
+        })
+
+        if (result.success && result.data) {
+          // 更新本地狀態 - 轉換為 App 中使用的 Word 類型
+          const appWord: Word = {
+            id: result.data.id,
+            word: result.data.word,
+            translation: result.data.translation,
+            phonetic: result.data.phonetic,
+            partOfSpeech: result.data.partOfSpeech,
+            difficulty: result.data.difficulty,
+            createdAt: result.data.createdAt,
+            updatedAt: result.data.updatedAt
+          }
+          setWords(prev => [appWord, ...prev])
+          showNotification(`✅ "${cleanWord}" 已收藏到單字本`, 'success')
+        } else {
+          showNotification(`❌ 收藏 "${cleanWord}" 失敗: ${result.error}`, 'error')
+        }
       } catch (error) {
         console.error('收藏單字失敗:', error)
         showNotification(`❌ 收藏 "${cleanWord}" 失敗`, 'error')
       }
-    } else if (cleanWord && words.find(w => w.word.toLowerCase() === cleanWord)) {
-      // 單字已經存在
-      showNotification(`ℹ️ "${cleanWord}" 已在單字本中`, 'info')
     }
   }
 
   // 收藏句子
   const collectSentence = async (message: { speaker: string; text: string; chinese?: string }) => {
-    if (!sentences.find(s => s.english.toLowerCase() === message.text.toLowerCase())) {
+    try {
+      // 檢查句子是否已經存在
+      const existingSentences = await DatabaseService.getSentences()
+      if (existingSentences.success && existingSentences.data) {
+        const sentenceExists = existingSentences.data.find(s => s.english.toLowerCase() === message.text.toLowerCase())
+        if (sentenceExists) {
+          showNotification(`ℹ️ 句子已在收藏中`, 'info')
+          return
+        }
+      }
+
       const chineseTranslation = message.chinese || await translateSentence(message.text)
       
-      const newSentence: Sentence = {
-        id: `${Date.now()}-${message.speaker}`,
+      // 使用 DatabaseService 創建句子
+      const result = await DatabaseService.createSentence({
         english: message.text,
         chinese: chineseTranslation,
-        addedAt: new Date()
+        difficulty: 'BEGINNER' // 默認設為初級
+      })
+
+      if (result.success && result.data) {
+        // 更新本地狀態 - 轉換為 App 中使用的 Sentence 類型
+        const appSentence: Sentence = {
+          id: result.data.id,
+          english: result.data.english,
+          chinese: result.data.chinese,
+          difficulty: result.data.difficulty,
+          category: result.data.category,
+          tags: result.data.tags,
+          createdAt: result.data.createdAt,
+          updatedAt: result.data.updatedAt
+        }
+        setSentences(prev => [appSentence, ...prev])
+        showNotification(`✅ 句子已收藏成功`, 'success')
+      } else {
+        showNotification(`❌ 收藏句子失敗: ${result.error}`, 'error')
       }
-      
-      setSentences(prev => [newSentence, ...prev])
+    } catch (error) {
+      console.error('收藏句子失敗:', error)
+      showNotification(`❌ 收藏句子失敗`, 'error')
     }
   }
 
@@ -389,9 +442,7 @@ function App() {
   const renderWordsPage = () => (
     <Suspense fallback={<LoadingSpinner />}>
       <WordCollection
-        words={words}
         onSpeakWord={speakWord}
-        onDeleteWord={deleteWord}
       />
     </Suspense>
   )
@@ -400,11 +451,7 @@ function App() {
   const renderSentencesPage = () => (
     <Suspense fallback={<LoadingSpinner />}>
       <SentenceCollection
-        sentences={sentences}
-        selectedSentence={selectedSentence}
         dialogue={dialogue}
-        onSelectSentence={setSelectedSentence}
-        onDeleteSentence={deleteSentence}
         onSpeakSentence={speakSentence}
         onCollectWord={collectWord}
         onWordTranslate={translateWord}

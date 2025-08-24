@@ -8,16 +8,23 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "analyze": "npm run build && powershell -ExecutionPolicy Bypass -File analyze-bundle.ps1"
+    "analyze": "npm run build && powershell -ExecutionPolicy Bypass -File analyze-bundle.ps1",
+    "db:generate": "prisma generate",
+    "db:push": "prisma db push",
+    "db:studio": "prisma studio",
+    "db:test": "tsx src/services/databaseTest.ts",
+    "db:init": "node scripts/init-database.js"
   },
   "dependencies": {
     "@azure-rest/ai-inference": "^1.0.0-beta.6",
     "@azure/core-auth": "^1.10.0",
     "@azure/core-sse": "^2.3.0",
     "@mistralai/mistralai": "^1.9.18",
+    "@prisma/client": "^6.14.0",
     "@types/node": "^24.3.0",
     "axios": "^1.11.0",
     "lucide-react": "^0.540.0",
+    "prisma": "^6.14.0",
     "react": "^19.1.1",
     "react-dom": "^19.1.1"
   },

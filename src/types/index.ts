@@ -16,7 +16,11 @@ export interface Word {
   id: string
   word: string
   translation: string
-  addedAt: Date
+  phonetic?: string
+  partOfSpeech?: string
+  difficulty: 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED'
+  createdAt: Date
+  updatedAt: Date
 }
 
 // 句子接口
@@ -24,7 +28,11 @@ export interface Sentence {
   id: string
   english: string
   chinese: string
-  addedAt: Date
+  difficulty: 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED'
+  category?: string
+  tags?: string[]
+  createdAt: Date
+  updatedAt: Date
 }
 
 // 對話消息接口
