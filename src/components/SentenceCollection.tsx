@@ -36,6 +36,7 @@ const SentenceCollection = ({
   const { themeConfig } = useTheme()
   const [sentences, setSentences] = useState<Sentence[]>([])
   const [selectedSentence, setSelectedSentence] = useState<Sentence | null>(null)
+  // @ts-ignore
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [showAddForm, setShowAddForm] = useState(false)

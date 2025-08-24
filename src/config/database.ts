@@ -23,7 +23,7 @@ export async function checkDatabaseHealth() {
     // 這裡應該調用你的 API 端點來檢查數據庫健康狀態
     const response = await fetch('/api/health');
     if (response.ok) {
-      const result = await response.json();
+      await response.json(); // 讀取響應但不使用結果
       return { healthy: true, message: '數據庫連接正常' };
     } else {
       return { 

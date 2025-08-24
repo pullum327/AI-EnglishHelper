@@ -144,8 +144,11 @@ function App() {
   const [inputMode, setInputMode] = useState<'dialogue' | 'translation' | 'reply-letter'>('dialogue')
 
   // 單字和句子收藏狀態
+  // @ts-ignore
   const [words, setWords] = useState<Word[]>([])
+  // @ts-ignore
   const [sentences, setSentences] = useState<Sentence[]>([])
+  // @ts-ignore
   const [selectedSentence, setSelectedSentence] = useState<Sentence | null>(null)
 
   // 冷卻計時器
@@ -365,18 +368,7 @@ function App() {
     return fallbackTranslations[sentence] || "待翻譯"
   }
 
-  // 刪除單字
-  const deleteWord = (id: string) => {
-    setWords(prev => prev.filter(w => w.id !== id))
-  }
 
-  // 刪除句子
-  const deleteSentence = (id: string) => {
-    setSentences(prev => prev.filter(s => s.id !== id))
-    if (selectedSentence?.id === id) {
-      setSelectedSentence(null)
-    }
-  }
 
   // 播放單字發音
   const speakWord = async (word: string) => {
