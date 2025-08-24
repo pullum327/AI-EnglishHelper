@@ -8,7 +8,6 @@ interface Word {
   translation: string
   phonetic?: string
   partOfSpeech?: string
-  difficulty: 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED'
   createdAt: Date
   updatedAt: Date
 }
@@ -25,8 +24,7 @@ const WordCollection = ({ onSpeakWord }: WordCollectionProps) => {
   const [showAddForm, setShowAddForm] = useState(false)
   const [newWord, setNewWord] = useState<Partial<WordData>>({
     word: '',
-    translation: '',
-    difficulty: 'BEGINNER'
+    translation: ''
   })
 
   // 載入單字數據
@@ -68,7 +66,7 @@ const WordCollection = ({ onSpeakWord }: WordCollectionProps) => {
       const result = await DatabaseService.createWord(newWord as WordData)
       if (result.success && result.data) {
         setWords(prev => [result.data, ...prev])
-        setNewWord({ word: '', translation: '', difficulty: 'BEGINNER' })
+        setNewWord({ word: '', translation: '' })
         setShowAddForm(false)
         setError(null)
       } else {
@@ -114,42 +112,7 @@ const WordCollection = ({ onSpeakWord }: WordCollectionProps) => {
     }
   }
 
-  // 按難度篩選
-  const handleFilterByDifficulty = async (difficulty: 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED' | 'ALL') => {
-    try {
-      if (difficulty === 'ALL') {
-        await loadWords()
-      } else {
-        const result = await DatabaseService.getWordsByDifficulty(difficulty)
-        if (result.success && result.data) {
-          setWords(result.data)
-          setError(null)
-        } else {
-          setError(result.error || '篩選失敗')
-        }
-      }
-    } catch (err) {
-      setError('篩選時發生錯誤')
-    }
-  }
 
-  const getDifficultyColor = (difficulty: string) => {
-    switch (difficulty) {
-      case 'BEGINNER': return 'text-green-500'
-      case 'INTERMEDIATE': return 'text-yellow-500'
-      case 'ADVANCED': return 'text-red-500'
-      default: return 'text-gray-500'
-    }
-  }
-
-  const getDifficultyText = (difficulty: string) => {
-    switch (difficulty) {
-      case 'BEGINNER': return '初級'
-      case 'INTERMEDIATE': return '中級'
-      case 'ADVANCED': return '高級'
-      default: return '未知'
-    }
-  }
 
   return (
     <div className={`bg-gradient-to-br ${themeConfig.colors.background.card} border ${themeConfig.colors.border.accent} rounded-3xl p-4 backdrop-blur-xl shadow-2xl`}>
@@ -194,22 +157,7 @@ const WordCollection = ({ onSpeakWord }: WordCollectionProps) => {
           </button>
         </div>
 
-        {/* 難度篩選 */}
-        <div className="flex gap-2">
-          {(['ALL', 'BEGINNER', 'INTERMEDIATE', 'ADVANCED'] as const).map((difficulty) => (
-            <button
-              key={difficulty}
-              onClick={() => handleFilterByDifficulty(difficulty)}
-              className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors ${
-                difficulty === 'ALL' 
-                  ? `${themeConfig.colors.background.tertiary} ${themeConfig.colors.text.primary}`
-                  : `${themeConfig.colors.background.secondary} ${themeConfig.colors.text.secondary} hover:${themeConfig.colors.text.primary}`
-              }`}
-            >
-              {difficulty === 'ALL' ? '全部' : getDifficultyText(difficulty)}
-            </button>
-          ))}
-        </div>
+
       </div>
 
       {/* 添加單字表單 */}
@@ -238,15 +186,7 @@ const WordCollection = ({ onSpeakWord }: WordCollectionProps) => {
               onChange={(e) => setNewWord(prev => ({ ...prev, phonetic: e.target.value }))}
               className={`px-3 py-2 rounded-lg border ${themeConfig.colors.border.primary} ${themeConfig.colors.background.tertiary} ${themeConfig.colors.text.primary} focus:outline-none focus:border-${themeConfig.colors.border.accent}`}
             />
-            <select
-              value={newWord.difficulty}
-              onChange={(e) => setNewWord(prev => ({ ...prev, difficulty: e.target.value as 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED' }))}
-              className={`px-3 py-2 rounded-lg border ${themeConfig.colors.border.primary} ${themeConfig.colors.background.tertiary} ${themeConfig.colors.text.primary} focus:outline-none focus:border-${themeConfig.colors.border.accent}`}
-            >
-              <option value="BEGINNER">初級</option>
-              <option value="INTERMEDIATE">中級</option>
-              <option value="ADVANCED">高級</option>
-            </select>
+
           </div>
           <div className="flex gap-2 mt-4">
             <button
@@ -303,9 +243,6 @@ const WordCollection = ({ onSpeakWord }: WordCollectionProps) => {
                     <div className={`text-lg font-semibold ${themeConfig.colors.text.primary} group-hover:${themeConfig.colors.text.accent} transition-colors duration-200`}>
                       {word.word}
                     </div>
-                    <span className={`text-xs px-2 py-1 rounded-full ${getDifficultyColor(word.difficulty)} bg-${getDifficultyColor(word.difficulty)}/10`}>
-                      {getDifficultyText(word.difficulty)}
-                    </span>
                   </div>
                   <div className={`${themeConfig.colors.text.secondary} text-sm mb-2`}>{word.translation}</div>
                   {word.phonetic && (

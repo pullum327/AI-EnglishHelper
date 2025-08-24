@@ -8,7 +8,6 @@ interface Sentence {
   id: string
   english: string
   chinese: string
-  difficulty: 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED'
   category?: string
   tags?: string[]
   createdAt: Date
@@ -42,8 +41,7 @@ const SentenceCollection = ({
   const [showAddForm, setShowAddForm] = useState(false)
   const [newSentence, setNewSentence] = useState<Partial<SentenceData>>({
     english: '',
-    chinese: '',
-    difficulty: 'BEGINNER'
+    chinese: ''
   })
 
   // 載入句子數據
@@ -85,7 +83,7 @@ const SentenceCollection = ({
       const result = await DatabaseService.createSentence(newSentence as SentenceData)
       if (result.success && result.data) {
         setSentences(prev => [result.data as Sentence, ...prev])
-        setNewSentence({ english: '', chinese: '', difficulty: 'BEGINNER' })
+        setNewSentence({ english: '', chinese: '' })
         setShowAddForm(false)
         setError(null)
       } else {
@@ -134,42 +132,7 @@ const SentenceCollection = ({
     }
   }
 
-  // 按難度篩選
-  const handleFilterByDifficulty = async (difficulty: 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED' | 'ALL') => {
-    try {
-      if (difficulty === 'ALL') {
-        await loadSentences()
-      } else {
-        const result = await DatabaseService.getSentencesByDifficulty(difficulty)
-        if (result.success && result.data) {
-          setSentences(result.data as Sentence[])
-          setError(null)
-        } else {
-          setError(result.error || '篩選失敗')
-        }
-      }
-    } catch (err) {
-      setError('篩選時發生錯誤')
-    }
-  }
 
-  const getDifficultyColor = (difficulty: string) => {
-    switch (difficulty) {
-      case 'BEGINNER': return 'text-green-500'
-      case 'INTERMEDIATE': return 'text-yellow-500'
-      case 'ADVANCED': return 'text-red-500'
-      default: return 'text-gray-500'
-    }
-  }
-
-  const getDifficultyText = (difficulty: string) => {
-    switch (difficulty) {
-      case 'BEGINNER': return '初級'
-      case 'INTERMEDIATE': return '中級'
-      case 'ADVANCED': return '高級'
-      default: return '未知'
-    }
-  }
 
   return (
     <div className={`bg-gradient-to-br ${themeConfig.colors.background.card} border ${themeConfig.colors.border.accent} rounded-3xl p-4 backdrop-blur-xl shadow-2xl`}>
@@ -214,22 +177,7 @@ const SentenceCollection = ({
           </button>
         </div>
 
-        {/* 難度篩選 */}
-        <div className="flex gap-2">
-          {(['ALL', 'BEGINNER', 'INTERMEDIATE', 'ADVANCED'] as const).map((difficulty) => (
-            <button
-              key={difficulty}
-              onClick={() => handleFilterByDifficulty(difficulty)}
-              className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors ${
-                difficulty === 'ALL' 
-                  ? `${themeConfig.colors.background.tertiary} ${themeConfig.colors.text.primary}`
-                  : `${themeConfig.colors.background.secondary} ${themeConfig.colors.text.secondary} hover:${themeConfig.colors.text.primary}`
-              }`}
-            >
-              {difficulty === 'ALL' ? '全部' : getDifficultyText(difficulty)}
-            </button>
-          ))}
-        </div>
+
       </div>
 
       {/* 添加句子表單 */}
@@ -251,15 +199,7 @@ const SentenceCollection = ({
               className={`w-full px-3 py-2 rounded-lg border ${themeConfig.colors.border.primary} ${themeConfig.colors.background.tertiary} ${themeConfig.colors.text.primary} focus:outline-none focus:border-${themeConfig.colors.border.accent} resize-none`}
               rows={2}
             />
-            <select
-              value={newSentence.difficulty}
-              onChange={(e) => setNewSentence(prev => ({ ...prev, difficulty: e.target.value as 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED' }))}
-              className={`px-3 py-2 rounded-lg border ${themeConfig.colors.border.primary} ${themeConfig.colors.background.tertiary} ${themeConfig.colors.text.primary} focus:outline-none focus:border-${themeConfig.colors.border.accent}`}
-            >
-              <option value="BEGINNER">初級</option>
-              <option value="INTERMEDIATE">中級</option>
-              <option value="ADVANCED">高級</option>
-            </select>
+
           </div>
           <div className="flex gap-2 mt-4">
             <button
@@ -313,9 +253,7 @@ const SentenceCollection = ({
                 {sentence.english}
               </div>
               <div className="flex items-center gap-2 mb-2">
-                <span className={`text-xs px-2 py-1 rounded-full ${getDifficultyColor(sentence.difficulty)} bg-${getDifficultyColor(sentence.difficulty)}/10`}>
-                  {getDifficultyText(sentence.difficulty)}
-                </span>
+                
                 <div className={`flex items-center gap-2 ${themeConfig.colors.text.tertiary} text-xs`}>
                   <div className={`w-2 h-2 ${themeConfig.colors.text.accent} rounded-full`}></div>
                   {new Date(sentence.createdAt).toLocaleDateString('zh-TW')}

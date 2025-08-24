@@ -14,13 +14,15 @@ interface DialogueDisplayProps {
   onCollectSentence: (message: DialogueMessage) => void
   onCollectWord: (word: string) => void
   onWordTranslate: (word: string, dialogue?: DialogueMessage[]) => Promise<string>
+  onSpeakSentence?: (text: string) => void
 }
 
 const DialogueDisplay = ({
   dialogue,
   onCollectSentence,
   onCollectWord,
-  onWordTranslate
+  onWordTranslate,
+  onSpeakSentence
 }: DialogueDisplayProps) => {
   const { themeConfig } = useTheme()
   const [showChinese, setShowChinese] = useState(false)
@@ -112,16 +114,33 @@ const DialogueDisplay = ({
                   </div>
                 </div>
                 
-                <button
-                  onClick={() => onCollectSentence(message)}
-                  className={`bg-gradient-to-r ${themeConfig.colors.background.tertiary} hover:${themeConfig.colors.background.cardHover} ${themeConfig.colors.text.accent} hover:${themeConfig.colors.text.primary} text-xs px-3 py-2 rounded-xl transition-all duration-200 border ${themeConfig.colors.border.accent} hover:${themeConfig.colors.border.secondary} hover:scale-105 transform backdrop-blur-sm`}
-                  title="收藏這個句子"
-                >
-                  <div className="flex items-center gap-1">
-                    <span className="text-xs">💾</span>
-                    <span>收藏</span>
-                  </div>
-                </button>
+                <div className="flex items-center gap-2">
+                  {/* 語音播放按鈕 */}
+                  {onSpeakSentence && (
+                    <button
+                      onClick={() => onSpeakSentence(message.text)}
+                      className={`bg-gradient-to-r ${themeConfig.colors.background.tertiary} hover:${themeConfig.colors.background.cardHover} ${themeConfig.colors.text.accent} hover:${themeConfig.colors.text.primary} text-xs px-3 py-2 rounded-xl transition-all duration-200 border ${themeConfig.colors.border.accent} hover:${themeConfig.colors.border.secondary} hover:scale-105 transform backdrop-blur-sm`}
+                      title="播放語音"
+                    >
+                      <div className="flex items-center gap-1">
+                        <span className="text-xs">🔊</span>
+                        <span>播放</span>
+                      </div>
+                    </button>
+                  )}
+                  
+                  {/* 收藏按鈕 */}
+                  <button
+                    onClick={() => onCollectSentence(message)}
+                    className={`bg-gradient-to-r ${themeConfig.colors.background.tertiary} hover:${themeConfig.colors.background.cardHover} ${themeConfig.colors.text.accent} hover:${themeConfig.colors.text.primary} text-xs px-3 py-2 rounded-xl transition-all duration-200 border ${themeConfig.colors.border.accent} hover:${themeConfig.colors.border.secondary} hover:scale-105 transform backdrop-blur-sm`}
+                    title="收藏這個句子"
+                  >
+                    <div className="flex items-center gap-1">
+                      <span className="text-xs">💾</span>
+                      <span>收藏</span>
+                    </div>
+                  </button>
+                </div>
               </div>
               
               {/* 對話文本 */}

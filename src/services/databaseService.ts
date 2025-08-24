@@ -6,13 +6,11 @@ export interface WordData {
   translation: string;
   phonetic?: string;
   partOfSpeech?: string;
-  difficulty?: 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED';
 }
 
 export interface SentenceData {
   english: string;
   chinese: string;
-  difficulty?: 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED';
   category?: string;
   tags?: string[];
 }
@@ -23,7 +21,6 @@ export interface Word {
   translation: string;
   phonetic?: string;
   partOfSpeech?: string;
-  difficulty: 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED';
   createdAt: Date;
   updatedAt: Date;
 }
@@ -32,7 +29,6 @@ export interface Sentence {
   id: string;
   english: string;
   chinese: string;
-  difficulty: 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED';
   category?: string;
   tags?: string[];
   createdAt: Date;
@@ -84,7 +80,6 @@ export class DatabaseService {
       const newWord: Word = {
         id: generateId(),
         ...wordData,
-        difficulty: wordData.difficulty || 'BEGINNER',
         createdAt: new Date(),
         updatedAt: new Date(),
       };
@@ -164,7 +159,6 @@ export class DatabaseService {
       const newSentence: Sentence = {
         id: generateId(),
         ...sentenceData,
-        difficulty: sentenceData.difficulty || 'BEGINNER',
         createdAt: new Date(),
         updatedAt: new Date(),
       };
@@ -266,28 +260,7 @@ export class DatabaseService {
     }
   }
 
-  // 按難度獲取
-  static async getWordsByDifficulty(difficulty: 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED') {
-    try {
-      const words = getFromStorage<Word>(WORDS_STORAGE_KEY);
-      const filteredWords = words.filter(word => word.difficulty === difficulty);
-      return { success: true, data: filteredWords };
-    } catch (error) {
-      console.error('按難度獲取單字失敗:', error);
-      return { success: false, error: error instanceof Error ? error.message : '未知錯誤' };
-    }
-  }
 
-  static async getSentencesByDifficulty(difficulty: 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED') {
-    try {
-      const sentences = getFromStorage<Sentence>(SENTENCES_STORAGE_KEY);
-      const filteredSentences = sentences.filter(sentence => sentence.difficulty === difficulty);
-      return { success: true, data: filteredSentences };
-    } catch (error) {
-      console.error('按難度獲取句子失敗:', error);
-      return { success: false, error: error instanceof Error ? error.message : '未知錯誤' };
-    }
-  }
 
   // 統計功能
   static async getStatistics() {
@@ -295,20 +268,11 @@ export class DatabaseService {
       const words = getFromStorage<Word>(WORDS_STORAGE_KEY);
       const sentences = getFromStorage<Sentence>(SENTENCES_STORAGE_KEY);
       
-      const difficultyStats = words.reduce((acc, word) => {
-        acc[word.difficulty] = (acc[word.difficulty] || 0) + 1;
-        return acc;
-      }, {} as Record<string, number>);
-
       return {
         success: true,
         data: {
           totalWords: words.length,
           totalSentences: sentences.length,
-          difficultyBreakdown: Object.entries(difficultyStats).map(([difficulty, count]) => ({
-            difficulty,
-            _count: { difficulty: count }
-          })),
         },
       };
     } catch (error) {
@@ -330,19 +294,19 @@ export class DatabaseService {
 
       // 創建示例單字
       const sampleWords: WordData[] = [
-        { word: 'hello', translation: '你好', phonetic: 'həˈloʊ', partOfSpeech: 'interjection', difficulty: 'BEGINNER' },
-        { word: 'world', translation: '世界', phonetic: 'wɜːld', partOfSpeech: 'noun', difficulty: 'BEGINNER' },
-        { word: 'beautiful', translation: '美麗的', phonetic: 'ˈbjuːtɪfʊl', partOfSpeech: 'adjective', difficulty: 'INTERMEDIATE' },
-        { word: 'knowledge', translation: '知識', phonetic: 'ˈnɒlɪdʒ', partOfSpeech: 'noun', difficulty: 'INTERMEDIATE' },
-        { word: 'sophisticated', translation: '複雜的，精密的', phonetic: 'səˈfɪstɪkeɪtɪd', partOfSpeech: 'adjective', difficulty: 'ADVANCED' },
+        { word: 'hello', translation: '你好', phonetic: 'həˈloʊ', partOfSpeech: 'interjection' },
+        { word: 'world', translation: '世界', phonetic: 'wɜːld', partOfSpeech: 'noun' },
+        { word: 'beautiful', translation: '美麗的', phonetic: 'ˈbjuːtɪfʊl', partOfSpeech: 'adjective' },
+        { word: 'knowledge', translation: '知識', phonetic: 'ˈnɒlɪdʒ', partOfSpeech: 'noun' },
+        { word: 'sophisticated', translation: '複雜的，精密的', phonetic: 'səˈfɪstɪkeɪtɪd', partOfSpeech: 'adjective' },
       ];
 
       // 創建示例句子
       const sampleSentences: SentenceData[] = [
-        { english: 'Hello, how are you today?', chinese: '你好，你今天過得怎麼樣？', difficulty: 'BEGINNER', category: '日常對話', tags: ['問候', '日常'] },
-        { english: 'The world is a beautiful place.', chinese: '世界是一個美麗的地方。', difficulty: 'BEGINNER', category: '描述', tags: ['世界', '美麗'] },
-        { english: 'Knowledge is power.', chinese: '知識就是力量。', difficulty: 'INTERMEDIATE', category: '名言', tags: ['知識', '力量'] },
-        { english: 'This is a sophisticated piece of technology.', chinese: '這是一個精密的技術產品。', difficulty: 'ADVANCED', category: '技術', tags: ['技術', '精密'] },
+        { english: 'Hello, how are you today?', chinese: '你好，你今天過得怎麼樣？', category: '日常對話', tags: ['問候', '日常'] },
+        { english: 'The world is a beautiful place.', chinese: '世界是一個美麗的地方。', category: '描述', tags: ['世界', '美麗'] },
+        { english: 'Knowledge is power.', chinese: '知識就是力量。', category: '名言', tags: ['知識', '力量'] },
+        { english: 'This is a sophisticated piece of technology.', chinese: '這是一個精密的技術產品。', category: '技術', tags: ['技術', '精密'] },
       ];
 
       // 保存示例數據

@@ -18,7 +18,6 @@ export interface Word {
   translation: string
   phonetic?: string
   partOfSpeech?: string
-  difficulty: 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED'
   createdAt: Date
   updatedAt: Date
 }
@@ -28,7 +27,6 @@ export interface Sentence {
   id: string
   english: string
   chinese: string
-  difficulty: 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED'
   category?: string
   tags?: string[]
   createdAt: Date

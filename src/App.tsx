@@ -275,8 +275,7 @@ function App() {
         // 使用 DatabaseService 創建單字
         const result = await DatabaseService.createWord({
           word: cleanWord,
-          translation,
-          difficulty: 'BEGINNER' // 默認設為初級
+          translation
         })
 
         if (result.success && result.data) {
@@ -287,7 +286,6 @@ function App() {
             translation: result.data.translation,
             phonetic: result.data.phonetic,
             partOfSpeech: result.data.partOfSpeech,
-            difficulty: result.data.difficulty,
             createdAt: result.data.createdAt,
             updatedAt: result.data.updatedAt
           }
@@ -318,25 +316,23 @@ function App() {
 
       const chineseTranslation = message.chinese || await translateSentence(message.text)
       
-      // 使用 DatabaseService 創建句子
-      const result = await DatabaseService.createSentence({
-        english: message.text,
-        chinese: chineseTranslation,
-        difficulty: 'BEGINNER' // 默認設為初級
-      })
+              // 使用 DatabaseService 創建句子
+        const result = await DatabaseService.createSentence({
+          english: message.text,
+          chinese: chineseTranslation
+        })
 
       if (result.success && result.data) {
-        // 更新本地狀態 - 轉換為 App 中使用的 Sentence 類型
-        const appSentence: Sentence = {
-          id: result.data.id,
-          english: result.data.english,
-          chinese: result.data.chinese,
-          difficulty: result.data.difficulty,
-          category: result.data.category,
-          tags: result.data.tags,
-          createdAt: result.data.createdAt,
-          updatedAt: result.data.updatedAt
-        }
+                  // 更新本地狀態 - 轉換為 App 中使用的 Sentence 類型
+          const appSentence: Sentence = {
+            id: result.data.id,
+            english: result.data.english,
+            chinese: result.data.chinese,
+            category: result.data.category,
+            tags: result.data.tags,
+            createdAt: result.data.createdAt,
+            updatedAt: result.data.updatedAt
+          }
         setSentences(prev => [appSentence, ...prev])
         showNotification(`✅ 句子已收藏成功`, 'success')
       } else {
@@ -426,6 +422,7 @@ function App() {
         onCollectSentence={collectSentence}
         onCollectWord={collectWord}
         onWordTranslate={translateWord}
+        onSpeakSentence={speakSentence}
       />
     </div>
   )
